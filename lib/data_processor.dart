@@ -2,6 +2,30 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
+// 包含额外标签的作品ID集合（来自extra_tag_subjects.js）
+final Set<int> subjectsWithExtraTags = {
+  18011, // 英雄联盟
+  20810, // 刀塔2
+  175552, // 赛马娘 Pretty Derby
+  225878, // 明日方舟
+  284157, // 原神
+  360097, // 崩坏：星穹铁道
+  380974, // 绝区零
+  194792, // 王者荣耀
+  172168, // 崩坏3
+  300648, // 蔚蓝档案
+  385208, // 鸣潮
+  208559, // 碧蓝航线
+  109378, // 命运-冠位指定
+  228217, // 第五人格
+  296327, // 永劫无间
+  208415, // BanG Dream! 少女乐团派对！
+  293554, // 战双帕弥什
+  378389, // 尘白禁区
+  219588, // 公主连结！Re:Dive
+  365720, // 重返未来：1999
+};
+
 // 角色信息结构体
 class CharacterInfo {
   final int id;
@@ -11,8 +35,8 @@ class CharacterInfo {
   final int collects;
   final int workCount;
   final double highestRating;
-  final int latestYear;
-  final int earliestYear;
+  final int latestAppearance;
+  final int earliestAppearance;
   final List<String> tags;
   final List<String> workNames;
 
@@ -24,8 +48,8 @@ class CharacterInfo {
     required this.collects,
     required this.workCount,
     required this.highestRating,
-    required this.latestYear,
-    required this.earliestYear,
+    required this.latestAppearance,
+    required this.earliestAppearance,
     required this.tags,
     required this.workNames,
   });
@@ -39,8 +63,8 @@ class CharacterInfo {
       'collects': collects,
       'workCount': workCount,
       'highestRating': highestRating,
-      'latestYear': latestYear,
-      'earliestYear': earliestYear,
+      'latestAppearance': latestAppearance,
+      'earliestAppearance': earliestAppearance,
       'tags': tags,
       'workNames': workNames,
     };
@@ -88,6 +112,7 @@ class DataProcessor {
         final characterId = data['character_id'] as int;
         final subjectId = data['subject_id'] as int;
         final type = data['type'] as int;
+        final order = data['order'] as int;
 
         if (!characterSubjects.containsKey(characterId)) {
           characterSubjects[characterId] = [];
@@ -96,6 +121,7 @@ class DataProcessor {
         characterSubjects[characterId]!.add({
           'subject_id': subjectId,
           'type': type,
+          'order': order,
         });
       } catch (e) {
         print('Error parsing subject-characters line: $e');
@@ -155,21 +181,46 @@ class DataProcessor {
     }
   }
 
-  // 提取作品信息（不包括客串角色）
+  // 提取作品信息（不包括客串角色）- 支持不同的作品类型过滤和额外标签作品
   Map<String, dynamic> extractWorkInfo(
     List<Map<String, dynamic>> characterSubjects,
     Map<int, Map<String, dynamic>> subjects,
-    int characterId
-  ) {
-    final nonGuestRoles = characterSubjects
-        .where((role) => role['type'] != 3) // 排除客串角色
-        .toList();
+    int characterId, {
+    List<int> allowedTypes = const [2, 4], // 默认允许番剧(type=2)和游戏(type=4)
+    bool includeExtraTagSubjects = false // 是否包含额外标签作品（仅番剧模式时使用）
+  }) {
+    // 首先过滤掉非主角和配角的角色（基于bangumi.js的逻辑）- 使用type字段
+    final mainRoles = characterSubjects.where((role) {
+      final roleType = role['type'] as int;
+      return roleType == 1 || roleType == 2; // type=1:主角, type=2:配角
+    }).toList();
 
-    final workIds = nonGuestRoles.map((role) => role['subject_id'] as int).toList();
+    // 然后排除客串角色（type=3）
+    final nonGuestRoles = mainRoles.where((role) => role['type'] != 3).toList();
+
+    // 根据过滤条件筛选作品
+    final filteredRoles = nonGuestRoles.where((role) {
+      final subjectId = role['subject_id'] as int;
+      final subject = subjects[subjectId];
+      if (subject == null) return false;
+      
+      // 获取作品类型
+      final subjectType = subject['type'] as int? ?? 0;
+      
+      if (includeExtraTagSubjects) {
+        // 仅番剧模式：包含类型2的作品或者额外标签作品
+        return subjectType == 2 || subjectsWithExtraTags.contains(subjectId);
+      } else {
+        // 包含番剧和游戏模式：根据允许的类型过滤
+        return allowedTypes.contains(subjectType);
+      }
+    }).toList();
+
+    final workIds = filteredRoles.map((role) => role['subject_id'] as int).toList();
     final workNames = <String>[];
     double highestRating = 0.0;
-    int latestYear = -1;
-    int earliestYear = -1;
+    int latestAppearance = -1;
+    int earliestAppearance = -1;
 
     for (final subjectId in workIds) {
       final subject = subjects[subjectId];
@@ -190,21 +241,21 @@ class DataProcessor {
         final yearStr = subject['year']?.toString() ?? '';
         final year = int.tryParse(yearStr) ?? 0;
         if (year > 0) {
-          if (latestYear == -1 || year > latestYear) {
-            latestYear = year;
+          if (latestAppearance == -1 || year > latestAppearance) {
+            latestAppearance = year;
           }
-          if (earliestYear == -1 || year < earliestYear) {
-            earliestYear = year;
+          if (earliestAppearance == -1 || year < earliestAppearance) {
+            earliestAppearance = year;
           }
         }
       }
     }
 
     return {
-      'workCount': nonGuestRoles.length,
+      'workCount': filteredRoles.length,
       'highestRating': highestRating,
-      'latestYear': latestYear == -1 ? 0 : latestYear,
-      'earliestYear': earliestYear == -1 ? 0 : earliestYear,
+      'latestAppearance': latestAppearance == -1 ? 0 : latestAppearance,
+      'earliestAppearance': earliestAppearance == -1 ? 0 : earliestAppearance,
       'workNames': workNames,
     };
   }
@@ -217,6 +268,15 @@ class DataProcessor {
     Map<int, Map<String, dynamic>> subjects,
     int characterId
   ) {
+    // 首先过滤掉非主角和配角的角色（基于bangumi.js的逻辑）- 使用type字段
+    final mainRoles = characterSubjects.where((role) {
+      final roleType = role['type'] as int;
+      return roleType == 1 || roleType == 2; // type=1:主角, type=2:配角
+    }).toList();
+
+    // 然后排除客串角色（type=3）
+    final nonGuestRoles = mainRoles.where((role) => role['type'] != 3).toList();
+
     // 定义标签分类和映射系统
     final Map<String, String> sourceTagMap = {
       'GAL改': '游戏改',
@@ -253,14 +313,14 @@ class DataProcessor {
       allMetaTags.add('CV:$cv');
     }
 
-    // 3. 从作品中提取标签（基于bangumi.js的逻辑）
-    for (final role in characterSubjects) {
+    // 3. 从作品中提取标签（基于bangumi.js的逻辑）- 只处理主角和配角
+    for (final role in nonGuestRoles) {
       final subjectId = role['subject_id'] as int;
       final subject = subjects[subjectId];
       if (subject != null) {
         // 计算权重：主角权重为3，配角权重为1
-        final roleType = role['staff']?.toString() ?? '';
-        final stuffFactor = roleType == '主角' ? 3 : 1;
+        final roleType = role['type'] as int;
+        final stuffFactor = roleType == 1 ? 3 : 1; // type=1:主角权重3, type=2:配角权重1
 
         // 处理元标签
         final metaTags = subject['meta_tags'] ?? [];
@@ -348,8 +408,8 @@ class DataProcessor {
     // 添加地区标签
     allMetaTags.addAll(regionTags);
 
-    // 6. 添加导演信息（保留原有逻辑）
-    for (final role in characterSubjects) {
+    // 6. 添加导演信息（保留原有逻辑）- 只处理主角和配角
+    for (final role in nonGuestRoles) {
       final subjectId = role['subject_id'] as int;
       final subject = subjects[subjectId];
       if (subject != null) {
@@ -369,7 +429,7 @@ class DataProcessor {
   }
 
   // 主处理函数 - 修改为异步版本
-  Future<List<CharacterInfo>> processAllData() async {
+  Future<Map<String, List<CharacterInfo>>> processAllData() async {
     // 使用当前工作目录作为项目根目录
     final projectRoot = Directory.current.path;
     print('项目根目录: $projectRoot');
@@ -409,7 +469,8 @@ class DataProcessor {
     print('Parsed id_tags');
 
     // 3. 处理每个角色 - 使用异步处理避免阻塞UI
-    final List<CharacterInfo> result = [];
+    final List<CharacterInfo> resultAllTypes = [];
+    final List<CharacterInfo> resultAnimeOnly = [];
     int processed = 0;
     int totalCharacters = characterIds.length;
     final startTime = DateTime.now();
@@ -431,10 +492,17 @@ class DataProcessor {
 
       final subjectsForCharacter = characterSubjects[characterId] ?? [];
 
-      // 提取作品信息（不包括客串）
-      final workInfo = extractWorkInfo(subjectsForCharacter, subjects, characterId);
+      // 提取作品信息 - 两份不同的过滤条件
+      final workInfoAllTypes = extractWorkInfo(subjectsForCharacter, subjects, characterId, allowedTypes: [2, 4]);
+      final workInfoAnimeOnly = extractWorkInfo(
+        subjectsForCharacter, 
+        subjects, 
+        characterId, 
+        allowedTypes: [2],
+        includeExtraTagSubjects: true  // 添加这个参数以包含额外标签作品
+      );
 
-      // 提取标签信息
+      // 提取标签信息（使用相同的标签逻辑）
       final tags = extractTags(characterData, idTags, subjectsForCharacter, subjects, characterId);
 
       // 创建角色信息
@@ -443,29 +511,46 @@ class DataProcessor {
       final gender = parseGender(characterData['gender']);
       final collects = int.tryParse(characterData['collects']?.toString() ?? '0') ?? 0;
 
-      final characterInfo = CharacterInfo(
+      // 创建两份不同的角色信息
+      final characterInfoAllTypes = CharacterInfo(
         id: characterId,
         name: name,
         nameCn: nameCn.isNotEmpty ? nameCn : name,
         gender: gender,
         collects: collects,
-        workCount: workInfo['workCount'] as int,
-        highestRating: workInfo['highestRating'] as double,
-        latestYear: workInfo['latestYear'] as int,
-        earliestYear: workInfo['earliestYear'] as int,
+        workCount: workInfoAllTypes['workCount'] as int,
+        highestRating: workInfoAllTypes['highestRating'] as double,
+        latestAppearance: workInfoAllTypes['latestAppearance'] as int,
+        earliestAppearance: workInfoAllTypes['earliestAppearance'] as int,
         tags: tags,
-        workNames: List<String>.from(workInfo['workNames'] as List),
+        workNames: List<String>.from(workInfoAllTypes['workNames'] as List),
       );
 
-      result.add(characterInfo);
+      final characterInfoAnimeOnly = CharacterInfo(
+        id: characterId,
+        name: name,
+        nameCn: nameCn.isNotEmpty ? nameCn : name,
+        gender: gender,
+        collects: collects,
+        workCount: workInfoAnimeOnly['workCount'] as int,
+        highestRating: workInfoAnimeOnly['highestRating'] as double,
+        latestAppearance: workInfoAnimeOnly['latestAppearance'] as int,
+        earliestAppearance: workInfoAnimeOnly['earliestAppearance'] as int,
+        tags: tags,
+        workNames: List<String>.from(workInfoAnimeOnly['workNames'] as List),
+      );
+
+      resultAllTypes.add(characterInfoAllTypes);
+      resultAnimeOnly.add(characterInfoAnimeOnly);
       processed++;
 
       // 为每个角色输出详细日志
       final progress = (processed / totalCharacters * 100).toStringAsFixed(1);
       final displayName = nameCn.isNotEmpty ? nameCn : name;
       print('[$processed/$totalCharacters] ($progress%) 角色ID $characterId: $displayName - '
-          '性别: $gender, 收藏数: $collects, 作品数: ${workInfo['workCount']}, '
-          '最高评分: ${workInfo['highestRating']}, 标签数: ${tags.length}');
+          '性别: $gender, 收藏数: $collects, 作品数(全部): ${workInfoAllTypes['workCount']}, '
+          '作品数(番剧): ${workInfoAnimeOnly['workCount']}, '
+          '最高评分: ${workInfoAllTypes['highestRating']}, 标签数: ${tags.length}');
 
       // 每100个角色输出一次进度报告
       if (processed % 100 == 0) {
@@ -482,14 +567,37 @@ class DataProcessor {
     final totalTime = endTime.difference(startTime);
     print('✅ 角色数据处理完成!');
     print('📊 统计信息:');
-    print('   - 总处理角色数: ${result.length}');
+    print('   - 总处理角色数: ${resultAllTypes.length}');
+    print('   - 包含番剧和游戏的角色数: ${resultAllTypes.where((c) => c.workCount > 0).length}');
+    print('   - 仅包含番剧的角色数: ${resultAnimeOnly.where((c) => c.workCount > 0).length}');
     print('   - 总耗时: ${totalTime.inMinutes}分${totalTime.inSeconds % 60}秒');
-    print('   - 平均处理速度: ${(result.length / totalTime.inSeconds).toStringAsFixed(2)} 角色/秒');
+    print('   - 平均处理速度: ${(resultAllTypes.length / totalTime.inSeconds).toStringAsFixed(2)} 角色/秒');
 
-    return result;
+    return {
+      'all_types': resultAllTypes,
+      'anime_only': resultAnimeOnly,
+    };
   }
 
-  // 保存结果到文件
+  // 保存结果到文件 - 修改为保存两份文件
+  void saveToFiles(Map<String, List<CharacterInfo>> characterData, String baseOutputPath) {
+    final allTypesCharacters = characterData['all_types']!;
+    final animeOnlyCharacters = characterData['anime_only']!;
+    
+    // 保存包含番剧和游戏的文件
+    final allTypesPath = baseOutputPath.replaceAll('.json', '_all_types.json');
+    saveToFile(allTypesCharacters, allTypesPath);
+    
+    // 保存仅包含番剧的文件
+    final animeOnlyPath = baseOutputPath.replaceAll('.json', '_anime_only.json');
+    saveToFile(animeOnlyCharacters, animeOnlyPath);
+    
+    print('✅ 已生成两份文件:');
+    print('   - $allTypesPath (${allTypesCharacters.length} 个角色)');
+    print('   - $animeOnlyPath (${animeOnlyCharacters.length} 个角色)');
+  }
+
+  // 保留原有的单个文件保存方法
   void saveToFile(List<CharacterInfo> characters, String outputPath) {
     final List<Map<String, dynamic>> jsonData = characters.map((c) => c.toJson()).toList();
     final jsonString = json.encode(jsonData);
