@@ -10,7 +10,6 @@ class CharacterInfo {
   final int latestAppearance;
   final int earliestAppearance;
   final double highestRating;
-  final Map<String, int> rawTags;
   final List<String> animeVAs;
   final List<String> metaTags;
 
@@ -25,7 +24,6 @@ class CharacterInfo {
     required this.latestAppearance,
     required this.earliestAppearance,
     required this.highestRating,
-    required this.rawTags,
     required this.animeVAs,
     required this.metaTags,
   });
@@ -42,7 +40,6 @@ class CharacterInfo {
       'latestAppearance': latestAppearance,
       'earliestAppearance': earliestAppearance,
       'highestRating': highestRating,
-      'rawTags': rawTags,
       'animeVAs': animeVAs,
       'metaTags': metaTags,
     };

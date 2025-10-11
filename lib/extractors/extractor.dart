@@ -190,13 +190,6 @@ class Extractor {
     final Map<String, int> tagCounts = {};
     final Map<String, int> metaTagCounts = {};
     final Set<String> regionTags = {};
-    final Map<String, int> rawTags = {};
-
-    // 1. 从id_tags.json获取补充标签
-    final additionalTags = idTags[characterId] ?? [];
-    for (final tag in additionalTags) {
-      rawTags[tag] = (rawTags[tag] ?? 0) + 1;
-    }
 
     // 2. 从作品中提取标签（基于bangumi.js的逻辑）- 只处理主角和配角
     for (final role in nonGuestRoles) {
@@ -306,7 +299,6 @@ class Extractor {
     }
 
     return {
-      'rawTags': rawTags,
       'metaTags': metaTags,
     };
   }
@@ -441,7 +433,6 @@ class Extractor {
           latestAppearance: allTypesWorkInfo['latestAppearance'] as int,
           earliestAppearance: allTypesWorkInfo['earliestAppearance'] as int,
           highestRating: allTypesWorkInfo['highestRating'] as double,
-          rawTags: Map<String, int>.from(allTypesTags['rawTags'] ?? {}),
           animeVAs: animeVAs,
           metaTags: List<String>.from(allTypesTags['metaTags'] ?? []),
         );
@@ -458,7 +449,6 @@ class Extractor {
           latestAppearance: animeOnlyWorkInfo['latestAppearance'] as int,
           earliestAppearance: animeOnlyWorkInfo['earliestAppearance'] as int,
           highestRating: animeOnlyWorkInfo['highestRating'] as double,
-          rawTags: Map<String, int>.from(animeOnlyTags['rawTags'] ?? {}),
           animeVAs: animeVAs,
           metaTags: List<String>.from(animeOnlyTags['metaTags'] ?? []),
         );
