@@ -15,11 +15,6 @@ class Extractor {
     '游戏': '游戏',
     '动画': '动画',
     '动漫': '动画',
-    'Anime': '动画',
-    'Manga': '漫画',
-    'Light Novel': '轻小说',
-    'Novel': '小说',
-    'Game': '游戏',
   };
 
   // 源标签集合
@@ -90,6 +85,11 @@ class Extractor {
     double highestRating = 0.0;
     int latestAppearance = 0;
     int earliestAppearance = 9999;
+    int validWorkCount = 0; // 有效作品计数（上映时间不晚于当前时间）
+
+    // 获取当前日期
+    final now = DateTime.now();
+    final currentDate = DateTime(now.year, now.month, now.day);
 
     for (final role in validRoles) {
       final subjectId = role['subject_id'] as int;
@@ -100,19 +100,43 @@ class Extractor {
         final rating = (subject['rating']?['score'] as num?)?.toDouble() ?? 0.0;
         final date = subject['date']?.toString() ?? '';
 
-        // 解析日期获取年份
+        // 解析日期获取年份和完整日期
         int year = 0;
+        DateTime? releaseDate;
         if (date.isNotEmpty) {
-          final yearMatch = RegExp(r'(\d{4})').firstMatch(date);
-          if (yearMatch != null) {
-            year = int.parse(yearMatch.group(1)!);
+          // 尝试解析完整日期（格式：YYYY-MM-DD）
+          try {
+            releaseDate = DateTime.parse(date);
+            year = releaseDate.year;
+          } catch (e) {
+            // 如果解析失败，只提取年份
+            final yearMatch = RegExp(r'(\d{4})').firstMatch(date);
+            if (yearMatch != null) {
+              year = int.parse(yearMatch.group(1)!);
+            }
           }
+        }
+
+        // 检查上映时间是否晚于当前时间
+        bool isFutureRelease = false;
+        if (releaseDate != null) {
+          // 有完整日期，精确比较
+          isFutureRelease = releaseDate.isAfter(currentDate);
+        } else if (year > 0) {
+          // 只有年份，比较年份
+          isFutureRelease = year > now.year;
+        }
+
+        // 如果上映时间晚于当前时间，跳过该作品
+        if (isFutureRelease) {
+          continue;
         }
 
         // 使用中文名优先，没有则用原名
         final displayName = nameCn.isNotEmpty ? nameCn : name;
         appearances.add(displayName);
         appearanceIds.add(subjectId);
+        validWorkCount++; // 增加有效作品计数
 
         // 更新最高评分
         if (rating > highestRating) {
@@ -137,7 +161,7 @@ class Extractor {
     }
 
     return {
-      'workCount': validRoles.length,
+      'workCount': validWorkCount, // 使用有效作品计数
       'highestRating': highestRating,
       'latestAppearance': latestAppearance,
       'earliestAppearance': earliestAppearance,
@@ -146,7 +170,7 @@ class Extractor {
     };
   }
 
-  // 提取标签信息 - 修复类型转换
+  // 提取标签信息 - 修复类型转换并去除重复标签
   static Map<String, dynamic> extractTags(
     List<Map<String, dynamic>> charSubjects,
     Map<int, Map<String, dynamic>> subjects,
@@ -245,7 +269,7 @@ class Extractor {
         .toList()
       ..sort((a, b) => b.values.first.compareTo(a.values.first));
 
-    // 4. 构建最终标签集合（限制数量，避免过多标签）
+    // 4. 构建最终标签集合（限制数量，避免过多标签）并去除重复
     final metaTags = <String>[];
     
     // 只添加一个源标签以避免混淆
@@ -253,20 +277,30 @@ class Extractor {
       metaTags.add(sortedSourceTags.first.keys.first);
     }
 
-    // 添加元标签（最多5个）
+    // 添加元标签（最多5个）并去除重复
     for (final tagObj in sortedMetaTags) {
       if (metaTags.length >= 15) break; // 总标签数限制
-      metaTags.add(tagObj.keys.first);
+      final tagName = tagObj.keys.first;
+      if (!metaTags.contains(tagName)) { // 检查是否已存在
+        metaTags.add(tagName);
+      }
     }
 
-    // 添加普通标签（最多5个）
+    // 添加普通标签（最多5个）并去除重复
     for (final tagObj in sortedTags) {
       if (metaTags.length >= 15) break; // 总标签数限制
-      metaTags.add(tagObj.keys.first);
+      final tagName = tagObj.keys.first;
+      if (!metaTags.contains(tagName)) { // 检查是否已存在
+        metaTags.add(tagName);
+      }
     }
 
-    // 添加地区标签
-    metaTags.addAll(regionTags);
+    // 添加地区标签并去除重复
+    for (final regionTag in regionTags) {
+      if (!metaTags.contains(regionTag)) { // 检查是否已存在
+        metaTags.add(regionTag);
+      }
+    }
 
     return {
       'rawTags': rawTags,
@@ -274,7 +308,7 @@ class Extractor {
     };
   }
 
-  // 提取声优信息
+  // 提取声优信息并去除重复
   static List<String> extractAnimeVAs(
     int characterId,
     Map<int, List<Map<String, dynamic>>> personCharacters,
@@ -298,7 +332,8 @@ class Extractor {
         
         // 优先使用中文名，没有则用原名
         final displayName = nameCn.isNotEmpty ? nameCn : name;
-        if (displayName.isNotEmpty) {
+        if (displayName.isNotEmpty && !animeVAs.contains(displayName)) {
+          // 检查是否已存在，避免重复添加
           animeVAs.add(displayName);
         }
       }
