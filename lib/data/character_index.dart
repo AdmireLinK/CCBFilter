@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path/path.dart' as path;
 
 class CharacterIndex {
   late Map<int, Map<String, dynamic>> _characters;

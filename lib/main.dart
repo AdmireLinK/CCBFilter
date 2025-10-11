@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
 import 'dart:async';
 import 'extract_characters.dart' as extractor;
 

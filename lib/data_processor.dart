@@ -22,7 +22,7 @@ final Set<int> subjectsWithExtraTags = {
   208415, // BanG Dream! 少女乐团派对！
   293554, // 战双帕弥什
   378389, // 尘白禁区
-  219588, // 公主连结！Re:Dive
+219588, // 公主连结！Re:Dive
   365720, // 重返未来：1999
 };
 
@@ -81,7 +81,7 @@ class DataProcessor {
     return data.map<int>((item) => item['id'] as int).toList();
   }
 
-  // 解析character.jsonlines文件
+  // 解析character.jsonlines文件 - 增强版，支持infobox解析
   Map<int, Map<String, dynamic>> parseCharacterJsonlines(String filePath) {
     final file = File(filePath);
     final lines = file.readAsLinesSync();
@@ -91,6 +91,21 @@ class DataProcessor {
       try {
         final data = json.decode(line) as Map<String, dynamic>;
         final id = data['id'] as int;
+        
+        // 解析infobox获取中文名和性别
+        final infobox = data['infobox']?.toString() ?? '';
+        if (infobox.isNotEmpty) {
+          final nameCn = parseNameCnFromInfobox(infobox);
+          if (nameCn.isNotEmpty) {
+            data['name_cn'] = nameCn;
+          }
+          
+          final gender = parseGenderFromInfobox(infobox);
+          if (gender.isNotEmpty) {
+            data['gender'] = gender;
+          }
+        }
+        
         characters[id] = data;
       } catch (e) {
         print('Error parsing character line: $e');
@@ -98,6 +113,170 @@ class DataProcessor {
     }
 
     return characters;
+  }
+
+  // 从infobox中解析中文名
+  String parseNameCnFromInfobox(String infobox) {
+    try {
+      // 简单的infobox解析逻辑，基于wiki-parser-go的实现
+      if (infobox.startsWith('{{Infobox')) {
+        final lines = infobox.split('\n');
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+          if (trimmedLine.startsWith('|')) {
+            final parts = trimmedLine.substring(1).split('=');
+            if (parts.length >= 2) {
+              final key = parts[0].trim();
+              final value = parts.sublist(1).join('=').trim();
+              
+              // 常见的中文名字段
+              if (key == '中文名' || key == '简体中文名' || key == '姓名' || 
+                  key == '名称' || key == '名字' || key == '本名') {
+                // 清理值中的wiki标记
+                return value
+                  .replaceAll('[[', '')
+                  .replaceAll(']]', '')
+                  .replaceAll('{{', '')
+                  .replaceAll('}}', '')
+                  .trim();
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error parsing infobox for name: $e');
+    }
+    return '';
+  }
+
+  // 从infobox中解析性别
+  String parseGenderFromInfobox(String infobox) {
+    try {
+      if (infobox.startsWith('{{Infobox')) {
+        final lines = infobox.split('\n');
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+          if (trimmedLine.startsWith('|')) {
+            final parts = trimmedLine.substring(1).split('=');
+            if (parts.length >= 2) {
+              final key = parts[0].trim();
+              final value = parts.sublist(1).join('=').trim();
+              
+              // 常见的性别字段
+              if (key == '性别' || key == '性別' || key == 'gender' || 
+                  key == '性別' || key == '性別') {
+                final genderValue = value
+                  .replaceAll('[[', '')
+                  .replaceAll(']]', '')
+                  .replaceAll('{{', '')
+                  .replaceAll('}}', '')
+                  .trim()
+                  .toLowerCase();
+                
+                if (genderValue.contains('男') || genderValue == 'male') {
+                  return '男';
+                } else if (genderValue.contains('女') || genderValue == 'female') {
+                  return '女';
+                } else {
+                  return '其它';
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error parsing infobox for gender: $e');
+    }
+    return '';
+  }
+
+  // 解析subject.jsonlines文件 - 增强版，支持正确的字段提取
+  Map<int, Map<String, dynamic>> parseSubjectJsonlines(String filePath) {
+    final file = File(filePath);
+    final lines = file.readAsLinesSync();
+    final Map<int, Map<String, dynamic>> subjects = {};
+
+    for (final line in lines) {
+      try {
+        final data = json.decode(line) as Map<String, dynamic>;
+        final id = data['id'] as int;
+        
+        // 正确提取评分信息
+        final ratingData = data['rating'];
+        double rating = 0.0;
+        if (ratingData is Map<String, dynamic>) {
+          // 评分可能在rating对象的score字段中
+          final score = ratingData['score'];
+          if (score != null) {
+            rating = double.tryParse(score.toString()) ?? 0.0;
+          }
+        } else if (ratingData != null) {
+          rating = double.tryParse(ratingData.toString()) ?? 0.0;
+        }
+        data['rating'] = rating;
+        
+        // 正确提取年份信息
+        final dateData = data['date'];
+        int year = 0;
+        if (dateData != null) {
+          final dateStr = dateData.toString();
+          // 尝试从日期字符串中提取年份
+          final yearMatch = RegExp(r'(\d{4})').firstMatch(dateStr);
+          if (yearMatch != null) {
+            year = int.tryParse(yearMatch.group(1)!) ?? 0;
+          }
+        }
+        
+        // 如果date字段没有年份，尝试从air_date字段提取
+        if (year == 0) {
+          final airDateData = data['air_date'];
+          if (airDateData != null) {
+            final airDateStr = airDateData.toString();
+            final airYearMatch = RegExp(r'(\d{4})').firstMatch(airDateStr);
+            if (airYearMatch != null) {
+              year = int.tryParse(airYearMatch.group(1)!) ?? 0;
+            }
+          }
+        }
+        
+        data['year'] = year;
+        
+        subjects[id] = data;
+      } catch (e) {
+        print('Error parsing subject line: $e');
+      }
+    }
+
+    return subjects;
+  }
+
+  // 处理性别转换 - 增强版，支持从infobox和直接数据中提取
+  String parseGender(dynamic genderData) {
+    if (genderData == null) return '其它';
+    
+    // 如果genderData已经是解析后的字符串，直接返回
+    if (genderData is String) {
+      final genderStr = genderData.toLowerCase();
+      if (genderStr.contains('男') || genderStr == 'male') {
+        return '男';
+      } else if (genderStr.contains('女') || genderStr == 'female') {
+        return '女';
+      } else {
+        return '其它';
+      }
+    }
+    
+    // 如果是其他类型，转换为字符串处理
+    final genderStr = genderData.toString().toLowerCase();
+    if (genderStr.contains('男') || genderStr == 'male') {
+      return '男';
+    } else if (genderStr.contains('女') || genderStr == 'female') {
+      return '女';
+    } else {
+      return '其它';
+    }
   }
 
   // 解析subject-characters.jsonlines文件
@@ -131,25 +310,6 @@ class DataProcessor {
     return characterSubjects;
   }
 
-  // 解析subject.jsonlines文件
-  Map<int, Map<String, dynamic>> parseSubjectJsonlines(String filePath) {
-    final file = File(filePath);
-    final lines = file.readAsLinesSync();
-    final Map<int, Map<String, dynamic>> subjects = {};
-
-    for (final line in lines) {
-      try {
-        final data = json.decode(line) as Map<String, dynamic>;
-        final id = data['id'] as int;
-        subjects[id] = data;
-      } catch (e) {
-        print('Error parsing subject line: $e');
-      }
-    }
-
-    return subjects;
-  }
-
   // 解析id_tags.json文件
   Map<int, List<String>> parseIdTags(String filePath) {
     final file = File(filePath);
@@ -165,20 +325,6 @@ class DataProcessor {
     });
     
     return idTags;
-  }
-
-  // 处理性别转换
-  String parseGender(dynamic genderData) {
-    if (genderData == null) return '其它';
-    
-    final genderStr = genderData.toString().toLowerCase();
-    if (genderStr.contains('男') || genderStr == 'male') {
-      return '男';
-    } else if (genderStr.contains('女') || genderStr == 'female') {
-      return '女';
-    } else {
-      return '其它';
-    }
   }
 
   // 提取作品信息（不包括客串角色）- 支持不同的作品类型过滤和额外标签作品
