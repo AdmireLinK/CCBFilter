@@ -47,7 +47,3 @@ app.*.map.json
 dump/
 .vscode/
 *.js
-wiki-parser-go/
-character_info.json
-character_info_anime_only.json
-character_info_all_types.json
