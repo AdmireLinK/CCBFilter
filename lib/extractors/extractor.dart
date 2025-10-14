@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../models/character.dart';
@@ -411,6 +409,8 @@ class Extractor {
         final nameCn = characterData['name_cn']?.toString() ?? '';
         final gender = Parser.parseGender(characterData['gender']);
         final collects = characterData['collects'] as int? ?? 0;
+        final comments = characterData['comments'] as int? ?? 0;
+        final popularity = collects + comments; 
 
         // 提取作品信息 - 所有类型（番剧和游戏）
         final allTypesWorkInfo = extractWorkInfo(
@@ -449,7 +449,7 @@ class Extractor {
           name: name,
           nameCn: nameCn,
           gender: gender,
-          collects: collects,
+          popularity: popularity, 
           appearances: List<String>.from(allTypesWorkInfo['appearances'] ?? []),
           appearanceIds: List<int>.from(allTypesWorkInfo['appearanceIds'] ?? []),
           latestAppearance: allTypesWorkInfo['latestAppearance'] as int,
@@ -465,7 +465,7 @@ class Extractor {
           name: name,
           nameCn: nameCn,
           gender: gender,
-          collects: collects,
+          popularity: popularity,
           appearances: List<String>.from(animeOnlyWorkInfo['appearances'] ?? []),
           appearanceIds: List<int>.from(animeOnlyWorkInfo['appearanceIds'] ?? []),
           latestAppearance: animeOnlyWorkInfo['latestAppearance'] as int,

@@ -1,10 +1,10 @@
-// 角色信息结构体 - 按照bangumi.js的输出格式
+// 角色信息结构体
 class CharacterInfo {
   final int id;
   final String name;
   final String nameCn;
   final String gender;
-  final int collects;
+  final int popularity;
   final List<String> appearances;
   final List<int> appearanceIds;
   final int latestAppearance;
@@ -18,7 +18,7 @@ class CharacterInfo {
     required this.name,
     required this.nameCn,
     required this.gender,
-    required this.collects,
+    required this.popularity,
     required this.appearances,
     required this.appearanceIds,
     required this.latestAppearance,
@@ -34,7 +34,7 @@ class CharacterInfo {
       'name': name,
       'nameCn': nameCn,
       'gender': gender,
-      'collects': collects,
+      'popularity': popularity,
       'appearances': appearances,
       'appearanceIds': appearanceIds,
       'latestAppearance': latestAppearance,

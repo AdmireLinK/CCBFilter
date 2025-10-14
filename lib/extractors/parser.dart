@@ -1,6 +1,3 @@
-
-// ignore_for_file: avoid_print
-
 class Parser {
   // 从infobox中解析中文名
   static String parseNameCnFromInfobox(String infobox) {

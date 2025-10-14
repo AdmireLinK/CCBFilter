@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 import 'extractors/extractor.dart';
 
@@ -40,8 +38,8 @@ Future<void> main() async {
       final otherCount = allCharacters.where((c) => c.gender == '其它').length;
       
       final avgWorkCount = allCharacters.map((c) => c.workCount).reduce((a, b) => a + b) / allCharacters.length;
-      final maxCollects = allCharacters.map((c) => c.collects).reduce((a, b) => a > b ? a : b);
-      final avgCollects = allCharacters.map((c) => c.collects).reduce((a, b) => a + b) / allCharacters.length;
+      final maxPopularity = allCharacters.map((c) => c.popularity).reduce((a, b) => a > b ? a : b); // 修改：collects改为popularity
+      final avgPopularity = allCharacters.map((c) => c.popularity).reduce((a, b) => a + b) / allCharacters.length; // 修改：collects改为popularity
       
       final charactersWithWorks = allCharacters.where((c) => c.workCount > 0).length;
       final charactersWithHighRating = allCharacters.where((c) => c.highestRating >= 8.0).length;
@@ -54,10 +52,11 @@ Future<void> main() async {
       print('   🎬 作品信息:');
       print('      - 平均作品数: ${avgWorkCount.toStringAsFixed(2)}');
       print('      - 有作品的角色: $charactersWithWorks (${(charactersWithWorks/allCharacters.length*100).toStringAsFixed(1)}%)');
-      print('      - 高评分作品角色: $charactersWithHighRating (${(charactersWithHighRating/allCharacters.length*100).toStringAsFixed(1)}%)');
-      print('   ❤️ 收藏信息:');
-      print('      - 平均收藏数: ${avgCollects.toStringAsFixed(0)}');
-      print('      - 最高收藏数: $maxCollects');
+      print('   ⭐ 评分信息:'); 
+      print('      - 高评分角色（≥8.0）: $charactersWithHighRating (${(charactersWithHighRating/allCharacters.length*100).toStringAsFixed(1)}%)');
+      print('   ❤️ 人气信息:');
+      print('      - 平均人气值: ${avgPopularity.toStringAsFixed(0)}');
+      print('      - 最高人气值: $maxPopularity');
     }
     
   } catch (e) {
