@@ -100,7 +100,9 @@ class Extractor {
       if (subject != null) {
         final name = subject['name']?.toString() ?? '';
         final nameCn = subject['name_cn']?.toString() ?? '';
-        final rating = (subject['rating']?['score'] as num?)?.toDouble() ?? 0.0;
+        // 修复评分数据读取逻辑：直接从score字段读取，而不是rating.score
+        final rating = (subject['score'] as num?)?.toDouble() ?? 
+                      (subject['rating']?['score'] as num?)?.toDouble() ?? 0.0;
         final date = subject['date']?.toString() ?? '';
 
         // 解析日期获取年份和完整日期
