@@ -185,12 +185,12 @@ class Extractor {
       final roleType = role['type'] as int;
       return roleType == 1 || roleType == 2; // type=1:主角, type=2:配角
     }).toList();
-
+  
     final Map<String, int> sourceTagCounts = {};
     final Map<String, int> tagCounts = {};
     final Map<String, int> metaTagCounts = {};
     final Set<String> regionTags = {};
-
+  
     // 2. 从作品中提取标签（基于bangumi.js的逻辑）- 只处理主角和配角
     for (final role in nonGuestRoles) {
       final subjectId = role['subject_id'] as int;
@@ -199,7 +199,7 @@ class Extractor {
         // 计算权重：主角权重为3，配角权重为1
         final roleType = role['type'] as int;
         final stuffFactor = roleType == 1 ? 3 : 1; // type=1:主角权重3, type=2:配角权重1
-
+  
         // 处理元标签 - 修复类型转换
         final metaTags = subject['meta_tags'];
         if (metaTags is List) {
@@ -211,12 +211,12 @@ class Extractor {
               } else if (regionTagSet.contains(tag)) {
                 regionTags.add(tag);
               } else {
-                metaTagCounts[tag] = (metaTagCounts[tag] ?? 0) + stuffFactor;
+                metaTagCounts[tag] = (metaTagCounts[tag] ?? 0) + 1 * stuffFactor;
               }
             }
           }
         }
-
+  
         // 处理普通标签 - 修复类型转换
         final tags = subject['tags'];
         if (tags is List) {
@@ -245,7 +245,7 @@ class Extractor {
         }
       }
     }
-
+  
     // 3. 标签排序和选择（基于bangumi.js的逻辑）
     // 排序源标签
     final sortedSourceTags = sourceTagCounts.entries
@@ -268,36 +268,56 @@ class Extractor {
     // 4. 构建最终标签集合（限制数量，避免过多标签）并去除重复
     final metaTags = <String>[];
     
+    // 1. 首先添加从id_tags.json获取的补充标签
+    final additionalTags = idTags[characterId] ?? [];
+    for (final tag in additionalTags) {
+      if (!metaTags.contains(tag)) {
+        metaTags.add(tag);
+      }
+    }
+    
+    // 2. 按照权重高低顺序添加其他类型的标签
+    int otherTagsCount = 0;
+    const maxOtherTags = 15;
+    
     // 只添加一个源标签以避免混淆
-    if (sortedSourceTags.isNotEmpty) {
-      metaTags.add(sortedSourceTags.first.keys.first);
+    if (sortedSourceTags.isNotEmpty && otherTagsCount < maxOtherTags) {
+      final tagName = sortedSourceTags.first.keys.first;
+      if (!metaTags.contains(tagName)) {
+        metaTags.add(tagName);
+        otherTagsCount++;
+      }
     }
 
     // 添加元标签（最多5个）并去除重复
     for (final tagObj in sortedMetaTags) {
-      if (metaTags.length >= 15) break; // 总标签数限制
+      if (otherTagsCount >= maxOtherTags) break; // 其他类型标签数限制
       final tagName = tagObj.keys.first;
       if (!metaTags.contains(tagName)) { // 检查是否已存在
         metaTags.add(tagName);
+        otherTagsCount++;
       }
     }
 
     // 添加普通标签（最多5个）并去除重复
     for (final tagObj in sortedTags) {
-      if (metaTags.length >= 15) break; // 总标签数限制
+      if (otherTagsCount >= maxOtherTags) break; // 其他类型标签数限制
       final tagName = tagObj.keys.first;
       if (!metaTags.contains(tagName)) { // 检查是否已存在
         metaTags.add(tagName);
+        otherTagsCount++;
       }
     }
 
     // 添加地区标签并去除重复
     for (final regionTag in regionTags) {
+      if (otherTagsCount >= maxOtherTags) break; // 其他类型标签数限制
       if (!metaTags.contains(regionTag)) { // 检查是否已存在
         metaTags.add(regionTag);
+        otherTagsCount++;
       }
     }
-
+  
     return {
       'metaTags': metaTags,
     };
