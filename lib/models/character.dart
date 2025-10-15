@@ -1,4 +1,4 @@
-// 角色信息结构体
+/// 供前端与导出 JSON 使用的角色信息载体
 class CharacterInfo {
   final int id;
   final String name;
@@ -45,11 +45,11 @@ class CharacterInfo {
     };
   }
 
-  // 获取作品数量
+  /// 作品数量直接取 appearances 列表长度
   int get workCount => appearances.length;
 }
 
-// 包含额外标签的作品ID集合
+/// 针对手游等特殊题材的白名单，允许在番剧模式下继续保留
 final Set<int> subjectsWithExtraTags = {
   18011, // 英雄联盟
   20810, // 刀塔2

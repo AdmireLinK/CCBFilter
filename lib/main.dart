@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
-import 'extract_characters.dart' as extractor;
+import 'package:flutter/material.dart';
+import 'extractors/extractor.dart';
+import 'models/character.dart';
+import 'utils/logger.dart';
 
+/// 桌面端入口应用，提供一键提取界面与实时日志
 void main() {
+  Logger.setMinLevel(LogLevel.info);
   runApp(const MainApp());
 }
 
@@ -14,55 +18,70 @@ class MainApp extends StatefulWidget {
 }
 
 class _MainAppState extends State<MainApp> {
-  List<String> logs = [];
+  static const int _maxLogs = 100;
+
+  final List<String> _logs = [];
+
   bool isExtracting = false;
   double progress = 0.0;
+  String statusMessage = '点击按钮开始提取';
 
-  void _addLog(String message) {
+  /// 向日志面板写入消息（带时间戳）
+  void _appendLog(String message) {
     setState(() {
-      logs.add('${DateTime.now().toString().substring(11, 19)} $message');
-      // 只保留最近的100条日志
-      if (logs.length > 100) {
-        logs.removeAt(0);
+      _logs.add('${DateTime.now().toString().substring(11, 19)} $message');
+      if (_logs.length > _maxLogs) {
+        _logs.removeAt(0);
       }
     });
   }
 
-  void _startExtraction() {
+  /// 触发数据提取流程
+  Future<void> _startExtraction() async {
     if (isExtracting) return;
-    
+
     setState(() {
       isExtracting = true;
-      logs.clear();
       progress = 0.0;
+      statusMessage = '🚀 开始读取本地数据集...';
+      _logs.clear();
     });
 
-    _addLog('开始数据提取...');
+    _appendLog('启动数据提取流程');
+    Logger.info('用户触发数据提取', tag: 'MainApp');
 
-    // 在后台线程中运行数据提取
-    Future.delayed(Duration.zero, () async {
-      try {
-        // 运行提取过程
-        final success = await extractor.extractData();
-        
-        if (success) {
-          _addLog('✅ 数据提取完成！');
-        } else {
-          _addLog('❌ 数据提取失败');
-        }
-        
-        setState(() {
-          isExtracting = false;
-          progress = 1.0;
-        });
-        
-      } catch (e) {
-        _addLog('❌ 错误: $e');
-        setState(() {
-          isExtracting = false;
-        });
-      }
-    });
+    try {
+      _appendLog('📂 正在加载和处理数据文件...');
+      final Map<String, List<CharacterInfo>> results = await Extractor.processAllData();
+
+      _appendLog('💾 正在写入输出文件...');
+      await Extractor.saveToFiles(results);
+
+      final allCount = results['All']?.length ?? 0;
+      final animeCount = results['Anime']?.length ?? 0;
+
+      setState(() {
+        progress = 1.0;
+        statusMessage = '✅ 数据提取完成！';
+      });
+
+      _appendLog('✅ 数据提取完成！');
+      _appendLog('All.json 角色数: $allCount, Anime.json 角色数: $animeCount');
+      Logger.info('数据提取完成: All=$allCount, Anime=$animeCount', tag: 'MainApp');
+    } catch (e, stackTrace) {
+      setState(() {
+        progress = 1.0;
+        statusMessage = '❌ 出现异常，请查看日志';
+      });
+
+      final errorMessage = '提取过程中出现异常: $e';
+      _appendLog(errorMessage);
+      Logger.error(errorMessage, tag: 'MainApp', error: e, stackTrace: stackTrace);
+    } finally {
+      setState(() {
+        isExtracting = false;
+      });
+    }
   }
 
   @override
@@ -70,99 +89,142 @@ class _MainAppState extends State<MainApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('角色数据提取工具'),
+          title: const Text('CCBFilter 数据提取工具'),
         ),
         body: Column(
           children: [
-            // 控制面板
-            Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.grey[100],
-              child: Column(
-                children: [
-                  const Text(
-                    'CCBFilter 角色数据提取',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    '点击下方按钮开始提取角色数据',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: isExtracting ? null : _startExtraction,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isExtracting ? Colors.grey : Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    ),
-                    child: Text(
-                      isExtracting ? '提取中...' : '开始提取数据',
-                      style: const TextStyle(fontSize: 18),
-                    ),
-                  ),
-                  if (isExtracting) ...[
-                    const SizedBox(height: 16),
-                    LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '进度: ${(progress * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ],
-              ),
+            _ControlPanel(
+              isExtracting: isExtracting,
+              progress: progress,
+              statusMessage: statusMessage,
+              onStart: () => _startExtraction(),
             ),
-            
-            // 日志显示区域
             Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: logs.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '日志将显示在这里...',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: logs.length,
-                        itemBuilder: (context, index) {
-                          final log = logs[index];
-                          final isError = log.contains('❌') || log.contains('错误');
-                          final isSuccess = log.contains('✅');
-                          
-                          return Container(
-                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: Colors.grey[300]!),
-                              ),
-                            ),
-                            child: Text(
-                              log,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: isError 
-                                    ? Colors.red 
-                                    : isSuccess 
-                                      ? Colors.green 
-                                      : Colors.black87,
-                                fontFamily: 'Monospace',
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
+              child: _LogList(logs: _logs),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 顶部操作面板：负责提示与进度反馈
+class _ControlPanel extends StatelessWidget {
+  const _ControlPanel({
+    required this.isExtracting,
+    required this.progress,
+    required this.statusMessage,
+    required this.onStart,
+  });
+
+  final bool isExtracting;
+  final double progress;
+  final String statusMessage;
+  final VoidCallback onStart;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      color: Colors.grey[100],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'CCBFilter 角色数据提取',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(statusMessage, style: const TextStyle(fontSize: 16)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton(
+                onPressed: isExtracting ? null : onStart,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isExtracting ? Colors.grey : Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: Text(isExtracting ? '提取中...' : '开始提取数据'),
+              ),
+              const SizedBox(width: 16),
+              if (isExtracting)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('进度: ${(progress * 100).toStringAsFixed(0)}%'),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 底部日志列表，支持状态颜色高亮
+class _LogList extends StatelessWidget {
+  const _LogList({required this.logs});
+
+  final List<String> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    if (logs.isEmpty) {
+      return const Center(
+        child: Text(
+          '日志将显示在这里...',
+          style: TextStyle(color: Colors.grey, fontSize: 16),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: ListView.builder(
+        itemCount: logs.length,
+        itemBuilder: (context, index) {
+          final log = logs[index];
+          final isError = log.contains('❌') || log.contains('错误');
+          final isSuccess = log.contains('✅');
+
+          Color textColor;
+          if (isError) {
+            textColor = Colors.red;
+          } else if (isSuccess) {
+            textColor = Colors.green;
+          } else {
+            textColor = Colors.black87;
+          }
+
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey[300]!),
+              ),
+            ),
+            child: Text(
+              log,
+              style: TextStyle(
+                fontSize: 12,
+                color: textColor,
+                fontFamily: 'Monospace',
+              ),
+            ),
+          );
+        },
       ),
     );
   }
