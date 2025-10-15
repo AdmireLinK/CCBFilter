@@ -45,6 +45,23 @@ class CharacterInfo {
     };
   }
 
+  factory CharacterInfo.fromJson(Map<String, dynamic> json) {
+    return CharacterInfo(
+      id: json['id'] as int,
+      name: json['name'] as String,
+      nameCn: json['nameCn'] as String,
+      gender: json['gender'] as String,
+      popularity: json['popularity'] as int,
+      appearances: List<String>.from(json['appearances'] as List),
+      appearanceIds: List<int>.from(json['appearanceIds'] as List),
+      latestAppearance: json['latestAppearance'] as int,
+      earliestAppearance: json['earliestAppearance'] as int,
+      highestRating: (json['highestRating'] as num).toDouble(),
+      animeVAs: List<String>.from(json['animeVAs'] as List),
+      metaTags: List<String>.from(json['metaTags'] as List),
+    );
+  }
+
   /// 作品数量直接取 appearances 列表长度
   int get workCount => appearances.length;
 }

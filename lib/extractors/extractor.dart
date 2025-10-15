@@ -17,7 +17,7 @@ class Extractor {
     '漫改': '漫画改',
     '漫画改编': '漫画改',
     '游戏改编': '游戏改',
-    '小说改编': '小说改'
+    '小说改编': '小说改',
   };
 
   /// 源标签集合，保证输出仅出现这些归一化值
@@ -25,7 +25,19 @@ class Extractor {
 
   /// 地区标签集合，独立于一般标签计数
   static final Set<String> regionTagSet = {
-    '日本', '欧美', '美国', '中国', '法国', '韩国', '英国', '俄罗斯', '中国香港', '苏联', '捷克', '中国台湾', '马来西亚'
+    '日本',
+    '欧美',
+    '美国',
+    '中国',
+    '法国',
+    '韩国',
+    '英国',
+    '俄罗斯',
+    '中国香港',
+    '苏联',
+    '捷克',
+    '中国台湾',
+    '马来西亚',
   };
 
   static const int _mainRoleWeight = 3;
@@ -39,8 +51,7 @@ class Extractor {
     Map<int, Map<String, dynamic>> subjects, {
     List<int> allowedTypes = const [2, 4],
     bool includeExtraTagSubjects = false,
-  }
-  ) {
+  }) {
     final nonGuestRoles = _filterMainRoles(charSubjects);
     if (nonGuestRoles.isEmpty) {
       return WorkStats.empty();
@@ -126,7 +137,7 @@ class Extractor {
     List<Map<String, dynamic>> charSubjects,
     Map<int, Map<String, dynamic>> subjects,
     Map<int, List<String>> idTags,
-    int characterId
+    int characterId,
   ) {
     final nonGuestRoles = _filterMainRoles(charSubjects);
 
@@ -140,7 +151,9 @@ class Extractor {
       final subject = subjects[subjectId];
       if (subject != null) {
         final roleType = role['type'] as int;
-        final stuffFactor = roleType == 1 ? _mainRoleWeight : _supportRoleWeight;
+        final stuffFactor = roleType == 1
+            ? _mainRoleWeight
+            : _supportRoleWeight;
 
         final metaTags = subject['meta_tags'];
         if (metaTags is List) {
@@ -151,34 +164,37 @@ class Extractor {
               } else if (regionTagSet.contains(tag)) {
                 regionTags.add(tag);
               } else {
-                metaTagCounts[tag] = (metaTagCounts[tag] ?? 0) + 1 * stuffFactor;
+                metaTagCounts[tag] =
+                    (metaTagCounts[tag] ?? 0) + 1 * stuffFactor;
               }
             }
           }
         }
-  
+
         final tags = subject['tags'];
         if (tags is List) {
           for (final tag in tags) {
             if (tag is Map<String, dynamic>) {
               final tagName = tag['name']?.toString() ?? '';
-              final tagCount = int.tryParse(tag['count']?.toString() ?? '1') ?? 1;
-              
+              final tagCount =
+                  int.tryParse(tag['count']?.toString() ?? '1') ?? 1;
+
               if (tagName.isNotEmpty && !tagName.contains('20')) {
                 if (sourceTagSet.contains(tagName)) {
-                  sourceTagCounts[tagName] = (sourceTagCounts[tagName] ?? 0) +
-                      tagCount * stuffFactor;
+                  sourceTagCounts[tagName] =
+                      (sourceTagCounts[tagName] ?? 0) + tagCount * stuffFactor;
                 } else if (sourceTagMap.containsKey(tagName)) {
                   final mappedTag = sourceTagMap[tagName]!;
-                  sourceTagCounts[mappedTag] = (sourceTagCounts[mappedTag] ?? 0) +
+                  sourceTagCounts[mappedTag] =
+                      (sourceTagCounts[mappedTag] ?? 0) +
                       tagCount * stuffFactor;
                 } else if (regionTagSet.contains(tagName)) {
                   regionTags.add(tagName);
                 } else if (regionTags.contains(tagName)) {
                   continue;
                 } else {
-                  tagCounts[tagName] = (tagCounts[tagName] ?? 0) +
-                      tagCount * stuffFactor;
+                  tagCounts[tagName] =
+                      (tagCounts[tagName] ?? 0) + tagCount * stuffFactor;
                 }
               }
             }
@@ -186,7 +202,7 @@ class Extractor {
         }
       }
     }
-  
+
     final sortedSourceTags = _sortByWeight(sourceTagCounts);
     final sortedTags = _sortByWeight(tagCounts);
     final sortedMetaTags = _sortByWeight(metaTagCounts);
@@ -268,33 +284,35 @@ class Extractor {
     try {
       // 解析必要的原始数据文件
       final charactersData = JsonProcessor.readJsonLinesFile(
-        path.join(dumpDir, 'character.jsonlines')
+        path.join(dumpDir, 'character.jsonlines'),
       );
       final characters = Parser.parseCharacterData(charactersData);
-      
+
       final subjects = JsonProcessor.parseSubjectJsonlines(
-        path.join(dumpDir, 'subject.jsonlines')
+        path.join(dumpDir, 'subject.jsonlines'),
       );
       final characterSubjects = JsonProcessor.parseSubjectCharactersJsonlines(
-        path.join(dumpDir, 'subject-characters.jsonlines')
+        path.join(dumpDir, 'subject-characters.jsonlines'),
       );
       // 用 subject-characters.jsonlines 中所有主角/配角角色作为目标角色集合
       final characterIds = characterSubjects.entries
-          .where((e) => e.value.any((r) {
-                final t = r['type'] as int? ?? 0;
-                return t == 1 || t == 2; // 1: 主角, 2: 配角
-              }))
+          .where(
+            (e) => e.value.any((r) {
+              final t = r['type'] as int? ?? 0;
+              return t == 1 || t == 2; // 1: 主角, 2: 配角
+            }),
+          )
           .map((e) => e.key)
           .toList();
 
       final idTags = JsonProcessor.parseIdTags(
-        path.join(dumpDir, 'id_tags.json')
+        path.join(dumpDir, 'id_tags.json'),
       );
       final persons = JsonProcessor.parsePersonJsonlines(
-        path.join(dumpDir, 'person.jsonlines')
+        path.join(dumpDir, 'person.jsonlines'),
       );
       final personCharacters = JsonProcessor.parsePersonCharactersJsonlines(
-        path.join(dumpDir, 'person-characters.jsonlines')
+        path.join(dumpDir, 'person-characters.jsonlines'),
       );
 
       final allTypesCharacters = <CharacterInfo>[];
@@ -312,31 +330,45 @@ class Extractor {
         final gender = Parser.parseGender(characterData['gender']);
         final collects = characterData['collects'] as int? ?? 0;
         final comments = characterData['comments'] as int? ?? 0;
-        final popularity = collects + comments; 
+        final popularity = collects + comments;
 
         final allTypesWorkInfo = extractWorkInfo(
-          charSubjects, subjects,
+          charSubjects,
+          subjects,
           allowedTypes: [2, 4], // 番剧和游戏
-          includeExtraTagSubjects: false
+          includeExtraTagSubjects: false,
         );
 
         final animeOnlyWorkInfo = extractWorkInfo(
-          charSubjects, subjects,
+          charSubjects,
+          subjects,
           allowedTypes: [2], // 仅番剧
-          includeExtraTagSubjects: true
+          includeExtraTagSubjects: true,
         );
 
-        final animeVAs = extractAnimeVAs(characterId, personCharacters, persons);
+        final animeVAs = extractAnimeVAs(
+          characterId,
+          personCharacters,
+          persons,
+        );
 
-        final allTypesTags = extractTags(charSubjects, subjects, idTags, characterId);
+        final allTypesTags = extractTags(
+          charSubjects,
+          subjects,
+          idTags,
+          characterId,
+        );
         final animeOnlyTags = extractTags(
           charSubjects.where((role) {
             final subjectId = role['subject_id'] as int;
             final subject = subjects[subjectId];
             final subjectType = subject?['type'] as int? ?? 0;
-            return subjectType == 2 || subjectsWithExtraTags.contains(subjectId);
+            return subjectType == 2 ||
+                subjectsWithExtraTags.contains(subjectId);
           }).toList(),
-          subjects, idTags, characterId
+          subjects,
+          idTags,
+          characterId,
         );
 
         final allTypesCharacter = CharacterInfo(
@@ -344,7 +376,7 @@ class Extractor {
           name: name,
           nameCn: nameCn,
           gender: gender,
-          popularity: popularity, 
+          popularity: popularity,
           appearances: List<String>.from(allTypesWorkInfo.appearances),
           appearanceIds: List<int>.from(allTypesWorkInfo.appearanceIds),
           latestAppearance: allTypesWorkInfo.latestAppearance,
@@ -373,18 +405,16 @@ class Extractor {
         animeOnlyCharacters.add(animeOnlyCharacter);
       }
 
-      return {
-        'All': allTypesCharacters,
-        'Anime': animeOnlyCharacters,
-      };
-
+      return {'All': allTypesCharacters, 'Anime': animeOnlyCharacters};
     } catch (e) {
       rethrow;
     }
   }
 
   /// 将处理结果写入磁盘
-  static Future<void> saveToFiles(Map<String, List<CharacterInfo>> processedData) async {
+  static Future<void> saveToFiles(
+    Map<String, List<CharacterInfo>> processedData,
+  ) async {
     final projectRoot = Directory.current.path;
     final outputDir = path.join(projectRoot, 'data');
 
@@ -399,11 +429,12 @@ class Extractor {
       ..sort((a, b) => b.popularity.compareTo(a.popularity));
     final animeJson = animeSorted.map((c) => c.toJson()).toList();
     await JsonProcessor.saveJsonFile(animeFile.path, animeJson);
-
   }
 
   /// 过滤出主角/配角关联记录
-  static List<Map<String, dynamic>> _filterMainRoles(List<Map<String, dynamic>> charSubjects) {
+  static List<Map<String, dynamic>> _filterMainRoles(
+    List<Map<String, dynamic>> charSubjects,
+  ) {
     return charSubjects.where((role) {
       final roleType = role['type'] as int? ?? 0;
       return roleType == 1 || roleType == 2;
@@ -452,7 +483,11 @@ class Extractor {
   }
 
   /// 判断作品是否在未来
-  static bool _isFutureRelease(_ReleaseMeta meta, DateTime today, int currentYear) {
+  static bool _isFutureRelease(
+    _ReleaseMeta meta,
+    DateTime today,
+    int currentYear,
+  ) {
     if (meta.date != null) {
       return meta.date!.isAfter(today);
     }

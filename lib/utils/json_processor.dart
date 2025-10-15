@@ -34,7 +34,11 @@ class JsonProcessor {
           data.add(parsed);
         }
       } catch (e) {
-        Logger.warning('解析JSON行时发生错误，文件: $filePath', tag: 'JsonProcessor', error: e);
+        Logger.warning(
+          '解析JSON行时发生错误，文件: $filePath',
+          tag: 'JsonProcessor',
+          error: e,
+        );
       }
     }
 
@@ -42,7 +46,10 @@ class JsonProcessor {
   }
 
   /// 保存 JSON 数据至磁盘（带缩进，便于人工检查）
-  static Future<void> saveJsonFile(String filePath, List<Map<String, dynamic>> data) async {
+  static Future<void> saveJsonFile(
+    String filePath,
+    List<Map<String, dynamic>> data,
+  ) async {
     try {
       final file = File(filePath);
       final directory = file.parent;
@@ -65,7 +72,10 @@ class JsonProcessor {
     final data = readJsonFile(filePath);
     if (data is List) {
       return data
-          .map<int>((item) => item is Map<String, dynamic> ? item['id'] as int? ?? 0 : 0)
+          .map<int>(
+            (item) =>
+                item is Map<String, dynamic> ? item['id'] as int? ?? 0 : 0,
+          )
           .where((id) => id > 0)
           .toList();
     }
@@ -73,7 +83,9 @@ class JsonProcessor {
   }
 
   /// 解析角色信息文件
-  static Map<int, Map<String, dynamic>> parseCharacterJsonlines(String filePath) {
+  static Map<int, Map<String, dynamic>> parseCharacterJsonlines(
+    String filePath,
+  ) {
     return _mapJsonLinesById(filePath, 'id');
   }
 
@@ -83,7 +95,9 @@ class JsonProcessor {
   }
 
   /// 解析角色-作品关联文件
-  static Map<int, List<Map<String, dynamic>>> parseSubjectCharactersJsonlines(String filePath) {
+  static Map<int, List<Map<String, dynamic>>> parseSubjectCharactersJsonlines(
+    String filePath,
+  ) {
     return _groupJsonLinesById(filePath, 'character_id');
   }
 
@@ -93,12 +107,16 @@ class JsonProcessor {
   }
 
   /// 解析人物-角色关联文件
-  static Map<int, List<Map<String, dynamic>>> parsePersonCharactersJsonlines(String filePath) {
+  static Map<int, List<Map<String, dynamic>>> parsePersonCharactersJsonlines(
+    String filePath,
+  ) {
     return _groupJsonLinesById(filePath, 'character_id');
   }
 
   /// 解析作品-人物关联文件
-  static Map<int, List<Map<String, dynamic>>> parseSubjectPersonsJsonlines(String filePath) {
+  static Map<int, List<Map<String, dynamic>>> parseSubjectPersonsJsonlines(
+    String filePath,
+  ) {
     return _groupJsonLinesById(filePath, 'subject_id');
   }
 
@@ -120,7 +138,10 @@ class JsonProcessor {
   }
 
   /// 将 JSONLines 文件按主键映射成 Map
-  static Map<int, Map<String, dynamic>> _mapJsonLinesById(String filePath, String keyName) {
+  static Map<int, Map<String, dynamic>> _mapJsonLinesById(
+    String filePath,
+    String keyName,
+  ) {
     final data = readJsonLinesFile(filePath);
     final Map<int, Map<String, dynamic>> result = {};
 
@@ -135,7 +156,10 @@ class JsonProcessor {
   }
 
   /// 将 JSONLines 文件按主键分组为列表
-  static Map<int, List<Map<String, dynamic>>> _groupJsonLinesById(String filePath, String keyName) {
+  static Map<int, List<Map<String, dynamic>>> _groupJsonLinesById(
+    String filePath,
+    String keyName,
+  ) {
     final data = readJsonLinesFile(filePath);
     final Map<int, List<Map<String, dynamic>>> result = {};
 

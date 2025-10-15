@@ -2,7 +2,14 @@ import '../utils/logger.dart';
 
 /// 负责解析原始 Bangumi 数据并补全关键字段
 class Parser {
-  static const List<String> _nameKeys = ['中文名', '简体中文名', '姓名', '名称', '名字', '本名'];
+  static const List<String> _nameKeys = [
+    '中文名',
+    '简体中文名',
+    '姓名',
+    '名称',
+    '名字',
+    '本名',
+  ];
   static const List<String> _genderKeys = ['性别', '性別', 'gender'];
 
   /// 从 infobox 文本中提取中文名
@@ -59,7 +66,9 @@ class Parser {
   }
 
   /// 增强角色数据：利用 infobox 覆盖中文名与性别
-  static Map<int, Map<String, dynamic>> parseCharacterData(List<Map<String, dynamic>> characters) {
+  static Map<int, Map<String, dynamic>> parseCharacterData(
+    List<Map<String, dynamic>> characters,
+  ) {
     final Map<int, Map<String, dynamic>> result = {};
 
     for (final character in characters) {
