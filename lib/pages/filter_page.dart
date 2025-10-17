@@ -19,10 +19,27 @@ class _FilterPageState extends State<FilterPage>
   List<CharacterInfo> _filteredCharacters = [];
   Set<String> _allTags = {};
   Set<String> _allAppearances = {};
+  final GlobalKey _numericGroupKey = GlobalKey();
+  final GlobalKey _yearGroupKey = GlobalKey();
+  double? _genderGroupMinHeight;
 
   bool _isLoading = true;
   bool _useAnimeOnly = true; // true=Anime.json(番剧), false=All.json(番剧+游戏)
   static const int _maxResults = 10;
+  static const double _kFilterInputWidth = 40;
+  static const double _kTagInputWidth = 100;
+  static const double _kGenderColumnSpacing = 4;
+  static const double _kGenderColumnWidth =
+      _kFilterInputWidth * 2 + _kGenderColumnSpacing * 2;
+  static const double _kGenderButtonPreferredSize =
+      (_kGenderColumnWidth - _kGenderColumnSpacing) / 2;
+  static const double _kGenderButtonMinSize = 40;
+  static const double _kGenderTopBottomPadding = 32;
+  static const double _kGenderHeaderHeightEstimate = 30;
+  static const double _kGenderChromeHeight =
+      _kGenderTopBottomPadding +
+      _kGenderHeaderHeightEstimate +
+      _kGenderColumnSpacing;
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -70,12 +87,13 @@ class _FilterPageState extends State<FilterPage>
       TextEditingController();
   bool _latestYearFuzzy = true;
 
-  final TextEditingController _tagSearchController = TextEditingController();
+  TextEditingController? _tagFieldController;
   final TextEditingController _appearanceSearchController =
       TextEditingController();
 
   final List<String> _selectedTags = [];
   String? _selectedAppearance;
+  String? _hoveredSelectedTag;
 
   @override
   void initState() {
@@ -110,6 +128,55 @@ class _FilterPageState extends State<FilterPage>
     _latestYearMinController.addListener(_applyFilters);
     _latestYearMaxController.addListener(_applyFilters);
     _latestYearExactController.addListener(_applyFilters);
+  }
+
+  void _scheduleGenderGroupHeightUpdate() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final numericHeight =
+          _numericGroupKey.currentContext?.size?.height;
+      final yearHeight = _yearGroupKey.currentContext?.size?.height;
+      final targetHeight = _maxDouble(numericHeight, yearHeight);
+
+      if (targetHeight != null &&
+          (_genderGroupMinHeight == null ||
+              (targetHeight - _genderGroupMinHeight!).abs() > 0.5)) {
+        setState(() {
+          _genderGroupMinHeight = targetHeight;
+        });
+      }
+    });
+  }
+
+  double? _maxDouble(double? a, double? b) {
+    if (a == null) return b;
+    if (b == null) return a;
+    return a > b ? a : b;
+  }
+
+  double _computeGenderButtonSize() {
+    final double? targetHeight = _genderGroupMinHeight;
+    final double? available = targetHeight != null
+        ? (targetHeight - _kGenderChromeHeight - _kGenderColumnSpacing) / 2
+        : null;
+
+    double size = _kGenderButtonPreferredSize;
+
+    if (available != null && available.isFinite && available > 0) {
+      size = available;
+    }
+
+    if (size < _kGenderButtonMinSize) {
+      size = _kGenderButtonMinSize;
+    } else if (size > _kGenderButtonPreferredSize) {
+      size = _kGenderButtonPreferredSize;
+    }
+
+    return size;
+  }
+
+  double _computeGenderGroupHeight(double buttonSize) {
+    return _kGenderChromeHeight + buttonSize * 2 + _kGenderColumnSpacing;
   }
 
   Future<void> _loadData() async {
@@ -198,6 +265,7 @@ class _FilterPageState extends State<FilterPage>
       _selectedTags.clear();
       _selectedAppearance = null;
       _appearanceSearchController.clear();
+      _tagFieldController?.clear();
       _filteredCharacters = List.from(_allCharacters.take(_maxResults));
     });
   }
@@ -208,31 +276,10 @@ class _FilterPageState extends State<FilterPage>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    _scheduleGenderGroupHeightUpdate();
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        actions: [
-          // 清空筛选按钮
-          TextButton.icon(
-            onPressed: _clearFilters,
-            icon: const Icon(Icons.clear_all),
-            label: const Text('清空筛选'),
-          ),
-          const SizedBox(width: 16),
-          // 模式切换
-          const Text('番剧', style: TextStyle(fontSize: 14)),
-          const SizedBox(width: 8),
-          Switch(
-            value: !_useAnimeOnly, // false=番剧, true=番剧+游戏
-            onChanged: (value) => _toggleDataSource(),
-            activeThumbColor: Colors.green,
-          ),
-          const SizedBox(width: 8),
-          const Text('番剧+游戏', style: TextStyle(fontSize: 14)),
-          const SizedBox(width: 16),
-        ],
-      ),
       body: Column(
         children: [
           _buildFilterSection(),
@@ -260,10 +307,20 @@ class _FilterPageState extends State<FilterPage>
           Row(
             children: [
               const Text(
-                '筛选条件',
+                '猜猜呗笑传之查查吧',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
+              const Text('番剧', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: 8),
+              Switch(
+                value: !_useAnimeOnly,
+                onChanged: (_) => _toggleDataSource(),
+                activeThumbColor: Colors.green,
+              ),
+              const SizedBox(width: 8),
+              const Text('番剧+游戏', style: TextStyle(fontSize: 12)),
+              const SizedBox(width: 16),
               TextButton.icon(
                 onPressed: _clearFilters,
                 icon: const Icon(Icons.clear, size: 18),
@@ -272,95 +329,43 @@ class _FilterPageState extends State<FilterPage>
             ],
           ),
           const SizedBox(height: 12),
-          // 性别筛选组
-          _buildFilterGroup(child: _buildGenderFilter()),
-          const SizedBox(height: 12),
-          // 数值筛选组
-          _buildFilterGroup(
-            child: Column(
-              children: [
-                // 第一行: 热度 + 作品数
-                Row(
+          // 使用IntrinsicWidth包裹第一、二行，使宽度与第一行内容对齐
+          IntrinsicWidth(
+            child: Builder(
+              builder: (_) {
+                final double genderButtonSize = _computeGenderButtonSize();
+                final double genderGroupHeight =
+                    _computeGenderGroupHeight(genderButtonSize);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      child: _buildCompactRangeFilter(
-                        label: '热度',
-                        minController: _popularityMinController,
-                        maxController: _popularityMaxController,
-                        exactController: _popularityExactController,
-                        fuzzy: _popularityFuzzy,
-                        onFuzzyChanged: (v) =>
-                            setState(() => _popularityFuzzy = v!),
-                      ),
+                    // 第一行：数值筛选组 + 年份筛选组 + 性别组
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFilterGroup(
+                          containerKey: _numericGroupKey,
+                          child: _buildNumericFilterGrid(),
+                        ),
+                        const SizedBox(width: 16),
+                        _buildFilterGroup(
+                          containerKey: _yearGroupKey,
+                          child: _buildYearFilterColumn(),
+                        ),
+                        const SizedBox(width: 16),
+                        _buildFilterGroup(
+                          child: _buildGenderFilter(genderButtonSize),
+                          minHeight: genderGroupHeight,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildCompactRangeFilter(
-                        label: '作品数',
-                        minController: _workCountMinController,
-                        maxController: _workCountMaxController,
-                        exactController: _workCountExactController,
-                        fuzzy: _workCountFuzzy,
-                        onFuzzyChanged: (v) =>
-                            setState(() => _workCountFuzzy = v!),
-                      ),
-                    ),
+                    const SizedBox(height: 12),
+                    // 第二行：标签筛选（自动占满第一行的宽度）
+                    _buildFilterGroup(child: _buildTagFilter()),
                   ],
-                ),
-                const SizedBox(height: 12),
-                // 第二行: 评分
-                _buildCompactRangeFilter(
-                  label: '评分',
-                  minController: _ratingMinController,
-                  maxController: _ratingMaxController,
-                  exactController: _ratingExactController,
-                  fuzzy: _ratingFuzzy,
-                  onFuzzyChanged: (v) => setState(() => _ratingFuzzy = v!),
-                  isDecimal: true,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // 年份筛选组
-          _buildFilterGroup(
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildCompactRangeFilter(
-                    label: '最早',
-                    minController: _earliestYearMinController,
-                    maxController: _earliestYearMaxController,
-                    exactController: _earliestYearExactController,
-                    fuzzy: _earliestYearFuzzy,
-                    onFuzzyChanged: (v) =>
-                        setState(() => _earliestYearFuzzy = v!),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildCompactRangeFilter(
-                    label: '最晚',
-                    minController: _latestYearMinController,
-                    maxController: _latestYearMaxController,
-                    exactController: _latestYearExactController,
-                    fuzzy: _latestYearFuzzy,
-                    onFuzzyChanged: (v) =>
-                        setState(() => _latestYearFuzzy = v!),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // 标签和作品筛选组
-          _buildFilterGroup(
-            child: Row(
-              children: [
-                Expanded(child: _buildTagFilter()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildAppearanceFilter()),
-              ],
+                );
+              },
             ),
           ),
         ],
@@ -369,8 +374,17 @@ class _FilterPageState extends State<FilterPage>
   }
 
   /// 筛选条件组容器(带圆角边框)
-  Widget _buildFilterGroup({required Widget child}) {
+  Widget _buildFilterGroup({
+    required Widget child,
+    Key? containerKey,
+    double? minHeight,
+  }) {
+    final constraints = minHeight != null
+        ? BoxConstraints(minHeight: minHeight, maxHeight: minHeight)
+        : null;
     return Container(
+      key: containerKey,
+      constraints: constraints,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -388,45 +402,88 @@ class _FilterPageState extends State<FilterPage>
     );
   }
 
-  Widget _buildGenderFilter() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '性别',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+  /// 筛选条件标题Chip(点击切换模糊状态, hover效果)
+  Widget _buildFilterTitleChipWithHover(
+    String text, {
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return _HoverableChip(text: text, isActive: isActive, onTap: onTap);
+  }
+
+  /// 普通标题Chip(无交互, 透明圆角矩形)
+  Widget _buildFilterTitleChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Colors.black87,
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _buildGenderButton('全', null),
-            const SizedBox(width: 4),
-            _buildGenderButton('男', '男'),
-            const SizedBox(width: 4),
-            _buildGenderButton('女', '女'),
-            const SizedBox(width: 4),
-            _buildGenderButton('非', '其它'),
-          ],
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildGenderButton(String label, String? value) {
+  Widget _buildGenderFilter(double buttonSize) {
+    const double columnWidth = _kGenderColumnWidth;
+    final double gridHeight = buttonSize * 2 + _kGenderColumnSpacing;
+
+    return SizedBox(
+      width: columnWidth,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildFilterTitleChip('性别'),
+          const SizedBox(height: _kGenderColumnSpacing),
+          SizedBox(
+            height: gridHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildGenderButton('全', null, fixedSize: buttonSize),
+                    const SizedBox(height: _kGenderColumnSpacing),
+                    _buildGenderButton('非', '其它', fixedSize: buttonSize),
+                  ],
+                ),
+                const SizedBox(width: _kGenderColumnSpacing),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildGenderButton('女', '女', fixedSize: buttonSize),
+                    const SizedBox(height: _kGenderColumnSpacing),
+                    _buildGenderButton('男', '男', fixedSize: buttonSize),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenderButton(
+    String label,
+    String? value, {
+    double? fixedSize,
+  }) {
     final isSelected = _selectedGender == value;
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _selectedGender = value;
-        });
-        _applyFilters();
-      },
-      child: Container(
-        width: 36,
-        height: 36,
+
+    Widget buildCircle(double size) {
+      return Container(
         decoration: BoxDecoration(
           color: isSelected ? Colors.blue : Colors.grey[200],
-          borderRadius: BorderRadius.circular(18),
+          shape: BoxShape.circle,
         ),
         alignment: Alignment.center,
         child: Text(
@@ -437,7 +494,133 @@ class _FilterPageState extends State<FilterPage>
             fontSize: 12,
           ),
         ),
-      ),
+      );
+    }
+
+    Widget buildInkWell(Widget child) {
+      return InkWell(
+        onTap: () {
+          setState(() {
+            _selectedGender = value;
+          });
+          _applyFilters();
+        },
+        child: child,
+      );
+    }
+
+    if (fixedSize != null) {
+      return buildInkWell(
+        SizedBox(
+          width: fixedSize,
+          height: fixedSize,
+          child: buildCircle(fixedSize),
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double width = constraints.biggest.width;
+        final double height = constraints.biggest.height;
+
+        double size;
+        if (width.isFinite && height.isFinite && width > 0 && height > 0) {
+          size = width < height ? width : height;
+        } else if (width.isFinite && width > 0) {
+          size = width;
+        } else if (height.isFinite && height > 0) {
+          size = height;
+        } else {
+          size = _kGenderButtonPreferredSize;
+        }
+
+        size = size.clamp(32.0, double.infinity);
+
+        return buildInkWell(
+          Center(
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: buildCircle(size),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNumericFilterGrid() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCompactRangeFilter(
+              label: '热度',
+              minController: _popularityMinController,
+              maxController: _popularityMaxController,
+              exactController: _popularityExactController,
+              fuzzy: _popularityFuzzy,
+              onFuzzyChanged: (v) => setState(() => _popularityFuzzy = v),
+            ),
+            const SizedBox(width: 12),
+            _buildCompactRangeFilter(
+              label: '作品数',
+              minController: _workCountMinController,
+              maxController: _workCountMaxController,
+              exactController: _workCountExactController,
+              fuzzy: _workCountFuzzy,
+              onFuzzyChanged: (v) => setState(() => _workCountFuzzy = v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCompactRangeFilter(
+              label: '评分',
+              minController: _ratingMinController,
+              maxController: _ratingMaxController,
+              exactController: _ratingExactController,
+              fuzzy: _ratingFuzzy,
+              onFuzzyChanged: (v) => setState(() => _ratingFuzzy = v),
+              isDecimal: true,
+            ),
+            const SizedBox(width: 12),
+            _buildAppearanceFilter(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildYearFilterColumn() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildCompactRangeFilter(
+          label: '最早',
+          minController: _earliestYearMinController,
+          maxController: _earliestYearMaxController,
+          exactController: _earliestYearExactController,
+          fuzzy: _earliestYearFuzzy,
+          onFuzzyChanged: (v) => setState(() => _earliestYearFuzzy = v),
+        ),
+        const SizedBox(height: 12),
+        _buildCompactRangeFilter(
+          label: '最晚',
+          minController: _latestYearMinController,
+          maxController: _latestYearMaxController,
+          exactController: _latestYearExactController,
+          fuzzy: _latestYearFuzzy,
+          onFuzzyChanged: (v) => setState(() => _latestYearFuzzy = v),
+        ),
+      ],
     );
   }
 
@@ -447,44 +630,23 @@ class _FilterPageState extends State<FilterPage>
     required TextEditingController maxController,
     required TextEditingController exactController,
     required bool fuzzy,
-    required ValueChanged<bool?> onFuzzyChanged,
+    required ValueChanged<bool> onFuzzyChanged,
     bool isDecimal = false,
   }) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            const Spacer(),
-            TextButton(
-              onPressed: () => onFuzzyChanged(!fuzzy),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                '模糊',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: fuzzy ? Colors.green : Colors.grey,
-                  fontWeight: fuzzy ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-          ],
+        _buildFilterTitleChipWithHover(
+          label,
+          isActive: fuzzy,
+          onTap: () => onFuzzyChanged(!fuzzy),
         ),
         const SizedBox(height: 4),
         Row(
           children: [
-            Expanded(
+            SizedBox(
+              width: _kFilterInputWidth,
               child: TextField(
                 controller: minController,
                 textAlign: TextAlign.center,
@@ -507,7 +669,8 @@ class _FilterPageState extends State<FilterPage>
               ),
             ),
             const SizedBox(width: 4),
-            Expanded(
+            SizedBox(
+              width: _kFilterInputWidth,
               child: TextField(
                 controller: exactController,
                 textAlign: TextAlign.center,
@@ -530,7 +693,8 @@ class _FilterPageState extends State<FilterPage>
               ),
             ),
             const SizedBox(width: 4),
-            Expanded(
+            SizedBox(
+              width: _kFilterInputWidth,
               child: TextField(
                 controller: maxController,
                 textAlign: TextAlign.center,
@@ -559,139 +723,141 @@ class _FilterPageState extends State<FilterPage>
   }
 
   Widget _buildTagFilter() {
+    // 使用Expanded自动占满可用宽度，与第一行对齐
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '标签',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Autocomplete<String>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
-            }
-            return _filterService.searchTags(_allTags, textEditingValue.text);
-          },
-          onSelected: (String selection) {
-            if (!_selectedTags.contains(selection)) {
-              setState(() {
-                _selectedTags.add(selection);
-                _tagSearchController.clear();
-              });
-              _applyFilters();
-            }
-          },
-          fieldViewBuilder:
-              (context, controller, focusNode, onEditingComplete) {
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    hintText: '搜索...',
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
-                    ),
-                    isDense: true,
-                    suffixIcon: _selectedTags.isNotEmpty
-                        ? PopupMenuButton<String>(
-                            icon: const Icon(Icons.list, size: 18),
-                            itemBuilder: (context) => _selectedTags
-                                .map(
-                                  (tag) => PopupMenuItem<String>(
-                                    value: tag,
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            tag,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.close,
-                                            size: 16,
-                                          ),
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            setState(() {
-                                              _selectedTags.remove(tag);
-                                            });
-                                            _applyFilters();
-                                          },
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          )
-                        : null,
-                  ),
-                  style: const TextStyle(fontSize: 12),
-                  onEditingComplete: onEditingComplete,
-                );
-              },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4.0,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: 200,
-                    maxWidth: 200,
-                  ),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return InkWell(
-                        onTap: () => onSelected(option),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            option,
-                            style: const TextStyle(fontSize: 12),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildFilterTitleChip('标签'),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: _kTagInputWidth,
+              child: Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _filterService.searchTags(
+                    _allTags,
+                    textEditingValue.text,
+                  );
+                },
+                onSelected: (String selection) {
+                  if (!_selectedTags.contains(selection)) {
+                    setState(() {
+                      _selectedTags.add(selection);
+                      _tagFieldController?.clear();
+                    });
+                    _applyFilters();
+                  }
+                },
+                fieldViewBuilder:
+                    (context, controller, focusNode, onEditingComplete) {
+                      _tagFieldController = controller;
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: const InputDecoration(
+                          hintText: '搜索...',
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
                           ),
+                          isDense: true,
                         ),
+                        style: const TextStyle(fontSize: 12),
+                        onEditingComplete: onEditingComplete,
                       );
                     },
-                  ),
-                ),
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: 200,
+                          maxWidth: _kTagInputWidth,
+                        ),
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            final option = options.elementAt(index);
+                            return InkWell(
+                              onTap: () => onSelected(option),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  option,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         ),
-        // 已选标签展示
         if (_selectedTags.isNotEmpty) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: _selectedTags.map((tag) {
-              return Chip(
-                label: Text(tag, style: const TextStyle(fontSize: 12)),
-                deleteIcon: const Icon(Icons.close, size: 16),
-                onDeleted: () {
-                  setState(() {
-                    _selectedTags.remove(tag);
-                  });
-                  _applyFilters();
-                },
-                backgroundColor: Colors.blue.shade50,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              final isHovered = _hoveredSelectedTag == tag;
+              final backgroundColor = isHovered
+                  ? Colors.grey[300]!
+                  : Colors.grey[200]!;
+              return MouseRegion(
+                onEnter: (_) => setState(() {
+                  _hoveredSelectedTag = tag;
+                }),
+                onExit: (_) => setState(() {
+                  if (_hoveredSelectedTag == tag) {
+                    _hoveredSelectedTag = null;
+                  }
+                }),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedTags.remove(tag);
+                      if (_hoveredSelectedTag == tag) {
+                        _hoveredSelectedTag = null;
+                      }
+                    });
+                    _applyFilters();
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
               );
             }).toList(),
           ),
@@ -702,99 +868,103 @@ class _FilterPageState extends State<FilterPage>
 
   Widget _buildAppearanceFilter() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          '作品',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-        ),
+        _buildFilterTitleChip('作品'),
         const SizedBox(height: 4),
-        Autocomplete<String>(
-          optionsBuilder: (TextEditingValue textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
-            }
-            return _allAppearances
-                .where(
-                  (a) => a.toLowerCase().contains(
-                    textEditingValue.text.toLowerCase(),
-                  ),
-                )
-                .take(20);
-          },
-          onSelected: (String selection) {
-            setState(() {
-              _selectedAppearance = selection;
-              _appearanceSearchController.text = selection;
-            });
-            _applyFilters();
-          },
-          fieldViewBuilder:
-              (context, controller, focusNode, onEditingComplete) {
-                _appearanceSearchController.text = controller.text;
-                return TextField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: InputDecoration(
-                    hintText: _selectedAppearance ?? '搜索...',
-                    border: const OutlineInputBorder(),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 8,
+        SizedBox(
+          width: _kFilterInputWidth * 3 + 8,
+          child: Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return _allAppearances
+                  .where(
+                    (a) => a.toLowerCase().contains(
+                      textEditingValue.text.toLowerCase(),
                     ),
-                    isDense: true,
-                    suffixIcon: _selectedAppearance != null
-                        ? IconButton(
-                            icon: const Icon(Icons.clear, size: 16),
-                            onPressed: () {
-                              setState(() {
-                                _selectedAppearance = null;
-                                _appearanceSearchController.clear();
-                                controller.clear();
-                              });
-                              _applyFilters();
-                            },
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          )
-                        : null,
-                  ),
-                  style: const TextStyle(fontSize: 12),
-                  onEditingComplete: onEditingComplete,
-                );
-              },
-          optionsViewBuilder: (context, onSelected, options) {
-            return Align(
-              alignment: Alignment.topLeft,
-              child: Material(
-                elevation: 4.0,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: 200,
-                    maxWidth: 200,
-                  ),
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: options.length,
-                    itemBuilder: (context, index) {
-                      final option = options.elementAt(index);
-                      return InkWell(
-                        onTap: () => onSelected(option),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            option,
-                            style: const TextStyle(fontSize: 12),
-                          ),
+                  )
+                  .take(20);
+            },
+            onSelected: (String selection) {
+              setState(() {
+                _selectedAppearance = selection;
+                _appearanceSearchController.text = selection;
+              });
+              _applyFilters();
+            },
+            fieldViewBuilder:
+                (context, controller, focusNode, onEditingComplete) {
+                  _appearanceSearchController.text = controller.text;
+                  return SizedBox(
+                    width: _kFilterInputWidth * 3 + 8,
+                    child: TextField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: InputDecoration(
+                        hintText: '搜索...',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
                         ),
-                      );
-                    },
+                        isDense: true,
+                        suffixIcon: _selectedAppearance != null
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedAppearance = null;
+                                    _appearanceSearchController.clear();
+                                    controller.clear();
+                                  });
+                                  _applyFilters();
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              )
+                            : null,
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                      onEditingComplete: onEditingComplete,
+                    ),
+                  );
+                },
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxHeight: 200,
+                      maxWidth: _kFilterInputWidth * 3 + 8,
+                    ),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (context, index) {
+                        final option = options.elementAt(index);
+                        return InkWell(
+                          onTap: () => onSelected(option),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              option,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
@@ -1236,8 +1406,59 @@ class _FilterPageState extends State<FilterPage>
     _latestYearMinController.dispose();
     _latestYearMaxController.dispose();
     _latestYearExactController.dispose();
-    _tagSearchController.dispose();
     _appearanceSearchController.dispose();
     super.dispose();
+  }
+}
+
+/// 可hover的Chip组件
+class _HoverableChip extends StatefulWidget {
+  final String text;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _HoverableChip({
+    required this.text,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  State<_HoverableChip> createState() => _HoverableChipState();
+}
+
+class _HoverableChipState extends State<_HoverableChip> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: widget.isActive
+                ? (_isHovered
+                      ? const Color(0xFF66BB6A)
+                      : const Color(0xFF81C784))
+                : (_isHovered ? Colors.grey[300] : Colors.grey[200]),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: widget.isActive ? Colors.white : Colors.black87,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
