@@ -26,11 +26,11 @@ class _FilterPageState extends State<FilterPage>
   bool _isLoading = true;
   bool _useAnimeOnly = true; // true=Anime.json(番剧), false=All.json(番剧+游戏)
   static const int _maxResults = 10;
-  static const double _kFilterInputWidth = 40;
+  static const double _kFilterInputWidth = 65;
   static const double _kTagInputWidth = 100;
   static const double _kGenderColumnSpacing = 4;
   static const double _kGenderColumnWidth =
-      _kFilterInputWidth * 2 + _kGenderColumnSpacing * 2;
+      80 + _kGenderColumnSpacing * 2;
   static const double _kGenderButtonPreferredSize =
       (_kGenderColumnWidth - _kGenderColumnSpacing) / 2;
   static const double _kGenderButtonMinSize = 40;
