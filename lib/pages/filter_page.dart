@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:window_manager/window_manager.dart';
 import '../models/character.dart';
 import '../services/character_filter_service.dart';
+import '../extractors/extractor.dart';
+import '../utils/logger.dart';
 
 /// 主页,提供角色筛选功能
 class FilterPage extends StatefulWidget {
@@ -11,8 +14,7 @@ class FilterPage extends StatefulWidget {
   State<FilterPage> createState() => _FilterPageState();
 }
 
-class _FilterPageState extends State<FilterPage>
-    with SingleTickerProviderStateMixin {
+class _FilterPageState extends State<FilterPage> {
   final CharacterFilterService _filterService = CharacterFilterService();
 
   List<CharacterInfo> _allCharacters = [];
@@ -22,10 +24,11 @@ class _FilterPageState extends State<FilterPage>
   final GlobalKey _numericGroupKey = GlobalKey();
   final GlobalKey _yearGroupKey = GlobalKey();
   double? _genderGroupMinHeight;
+  bool _isExtracting = false; // 新增：用于追踪数据提取状态
 
   bool _isLoading = true;
   bool _useAnimeOnly = true; // true=Anime.json(番剧), false=All.json(番剧+游戏)
-  static const int _maxResults = 10;
+  static const int _maxResults = 3; // 仅保留三条筛选结果
   static const double _kFilterInputWidth = 65;
   static const double _kTagInputWidth = 100;
   static const double _kGenderColumnSpacing = 4;
@@ -40,9 +43,6 @@ class _FilterPageState extends State<FilterPage>
       _kGenderTopBottomPadding +
       _kGenderHeaderHeightEstimate +
       _kGenderColumnSpacing;
-
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
 
   // 筛选条件
   String? _selectedGender;
@@ -98,15 +98,6 @@ class _FilterPageState extends State<FilterPage>
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
-
     _loadData();
     _setupListeners();
   }
@@ -193,7 +184,6 @@ class _FilterPageState extends State<FilterPage>
         _allAppearances = _filterService.getAllAppearances(characters);
         _isLoading = false;
       });
-      _animationController.forward();
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -270,6 +260,51 @@ class _FilterPageState extends State<FilterPage>
     });
   }
 
+  /// 更新提取数据
+  Future<void> _updateExtraction() async {
+    if (_isExtracting) return;
+
+    setState(() {
+      _isExtracting = true;
+    });
+
+    try {
+      Logger.info('🚀 开始数据提取...');
+      final processedData = await Extractor.processAllData();
+      await Extractor.saveToFiles(processedData);
+      Logger.info('✅ 数据提取完成');
+
+      // 重新加载数据
+      await _loadData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('数据更新成功！'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      Logger.error('❌ 数据提取失败: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('数据更新失败: $e'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExtracting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -280,20 +315,119 @@ class _FilterPageState extends State<FilterPage>
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Column(
-        children: [
-          _buildFilterSection(),
-          const Divider(height: 1),
-          _buildResultsHeader(),
-          const Divider(height: 1),
-          Expanded(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: _buildResultsCards(),
-            ),
-          ),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTitleBar(),
+            _buildFilterSection(),
+          ],
+        ),
       ),
+    );
+  }
+
+  /// 构建可拖动的标题栏，包含窗口控制按钮
+  Widget _buildTitleBar() {
+    return GestureDetector(
+      onPanStart: (details) {
+        windowManager.startDragging();
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0), // 顶部8px安全区
+        color: Colors.grey[50],
+        child: SizedBox(
+          height: 50,
+          child: Row(
+            children: [
+              const SizedBox(width: 20),
+              const Text(
+                '猜猜呗笑传之查查吧',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.remove, size: 20),
+                onPressed: () => windowManager.minimize(),
+                tooltip: '最小化',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => windowManager.close(),
+                tooltip: '关闭',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 构建操作栏：模式切换、清空筛选、更新提取
+  Widget _buildActionBar() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 模式切换
+        const Text('番剧', style: TextStyle(fontSize: 12)),
+        const SizedBox(width: 8),
+        Switch(
+          value: !_useAnimeOnly,
+          onChanged: (_) => _toggleDataSource(),
+          activeThumbColor: Colors.green,
+        ),
+        const SizedBox(width: 8),
+        const Text('番剧+游戏', style: TextStyle(fontSize: 12)),
+        const SizedBox(width: 24),
+        // 清空筛选
+        ElevatedButton.icon(
+          onPressed: _clearFilters,
+          icon: const Icon(Icons.clear, size: 18),
+          label: const Text('清空筛选'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.blue,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+          ),
+        ),
+        const SizedBox(width: 16),
+        // 更新提取
+        ElevatedButton.icon(
+          onPressed: _isExtracting ? null : _updateExtraction,
+          icon: _isExtracting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.green,
+                  ),
+                )
+              : const Icon(Icons.refresh, size: 18),
+          label: Text(_isExtracting ? '提取中...' : '更新提取'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.green,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            disabledForegroundColor: Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 
@@ -304,32 +438,7 @@ class _FilterPageState extends State<FilterPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text(
-                '猜猜呗笑传之查查吧',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              const Text('番剧', style: TextStyle(fontSize: 12)),
-              const SizedBox(width: 8),
-              Switch(
-                value: !_useAnimeOnly,
-                onChanged: (_) => _toggleDataSource(),
-                activeThumbColor: Colors.green,
-              ),
-              const SizedBox(width: 8),
-              const Text('番剧+游戏', style: TextStyle(fontSize: 12)),
-              const SizedBox(width: 16),
-              TextButton.icon(
-                onPressed: _clearFilters,
-                icon: const Icon(Icons.clear, size: 18),
-                label: const Text('清空'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 使用IntrinsicWidth包裹第一、二行，使宽度与第一行内容对齐
+          // 使用IntrinsicWidth包裹所有内容，使宽度与第一行内容对齐
           IntrinsicWidth(
             child: Builder(
               builder: (_) {
@@ -362,7 +471,19 @@ class _FilterPageState extends State<FilterPage>
                     ),
                     const SizedBox(height: 12),
                     // 第二行：标签筛选（自动占满第一行的宽度）
-                    _buildFilterGroup(child: _buildTagFilter()),
+                    _buildFilterGroup(
+                      child: _buildTagFilter(),
+                    ),
+                    const SizedBox(height: 12),
+                    // 第三行：操作栏（自动占满第一行的宽度）
+                    _buildFilterGroup(
+                      child: _buildActionBar(),
+                    ),
+                    const SizedBox(height: 12),
+                    // 第四行：筛选结果（自动占满第一行的宽度）
+                    _buildFilterGroup(
+                      child: _buildResultsCards(),
+                    ),
                   ],
                 );
               },
@@ -723,143 +844,138 @@ class _FilterPageState extends State<FilterPage>
   }
 
   Widget _buildTagFilter() {
-    // 使用Expanded自动占满可用宽度，与第一行对齐
-    return Column(
+    return Row(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildFilterTitleChip('标签'),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: _kTagInputWidth,
-              child: Autocomplete<String>(
-                optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return const Iterable<String>.empty();
-                  }
-                  return _filterService.searchTags(
-                    _allTags,
-                    textEditingValue.text,
+        _buildFilterTitleChip('标签'),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: _kTagInputWidth,
+          child: Autocomplete<String>(
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<String>.empty();
+              }
+              return _filterService.searchTags(
+                _allTags,
+                textEditingValue.text,
+              );
+            },
+            onSelected: (String selection) {
+              if (!_selectedTags.contains(selection)) {
+                setState(() {
+                  _selectedTags.add(selection);
+                  _tagFieldController?.clear();
+                });
+                _applyFilters();
+              }
+            },
+            fieldViewBuilder:
+                (context, controller, focusNode, onEditingComplete) {
+                  _tagFieldController = controller;
+                  return TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    decoration: const InputDecoration(
+                      hintText: '搜索...',
+                      border: UnderlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      isDense: true,
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                    onEditingComplete: onEditingComplete,
                   );
                 },
-                onSelected: (String selection) {
-                  if (!_selectedTags.contains(selection)) {
-                    setState(() {
-                      _selectedTags.add(selection);
-                      _tagFieldController?.clear();
-                    });
-                    _applyFilters();
-                  }
-                },
-                fieldViewBuilder:
-                    (context, controller, focusNode, onEditingComplete) {
-                      _tagFieldController = controller;
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: const InputDecoration(
-                          hintText: '搜索...',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxHeight: 200,
+                      maxWidth: _kTagInputWidth,
+                    ),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (context, index) {
+                        final option = options.elementAt(index);
+                        return InkWell(
+                          onTap: () => onSelected(option),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              option,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ),
-                          isDense: true,
-                        ),
-                        style: const TextStyle(fontSize: 12),
-                        onEditingComplete: onEditingComplete,
-                      );
-                    },
-                optionsViewBuilder: (context, onSelected, options) {
-                  return Align(
-                    alignment: Alignment.topLeft,
-                    child: Material(
-                      elevation: 4.0,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxHeight: 200,
-                          maxWidth: _kTagInputWidth,
-                        ),
-                        child: ListView.builder(
-                          padding: EdgeInsets.zero,
-                          shrinkWrap: true,
-                          itemCount: options.length,
-                          itemBuilder: (context, index) {
-                            final option = options.elementAt(index);
-                            return InkWell(
-                              onTap: () => onSelected(option),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  option,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-        if (_selectedTags.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _selectedTags.map((tag) {
-              final isHovered = _hoveredSelectedTag == tag;
-              final backgroundColor = isHovered
-                  ? Colors.grey[300]!
-                  : Colors.grey[200]!;
-              return MouseRegion(
-                onEnter: (_) => setState(() {
-                  _hoveredSelectedTag = tag;
-                }),
-                onExit: (_) => setState(() {
-                  if (_hoveredSelectedTag == tag) {
-                    _hoveredSelectedTag = null;
-                  }
-                }),
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedTags.remove(tag);
-                      if (_hoveredSelectedTag == tag) {
-                        _hoveredSelectedTag = null;
-                      }
-                    });
-                    _applyFilters();
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: backgroundColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.black87,
-                      ),
+                        );
+                      },
                     ),
                   ),
                 ),
               );
-            }).toList(),
+            },
+          ),
+        ),
+        if (_selectedTags.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Flexible(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _selectedTags.map((tag) {
+                final isHovered = _hoveredSelectedTag == tag;
+                final backgroundColor = isHovered
+                    ? Colors.grey[300]!
+                    : Colors.grey[200]!;
+                return MouseRegion(
+                  onEnter: (_) => setState(() {
+                    _hoveredSelectedTag = tag;
+                  }),
+                  onExit: (_) => setState(() {
+                    if (_hoveredSelectedTag == tag) {
+                      _hoveredSelectedTag = null;
+                    }
+                  }),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedTags.remove(tag);
+                        if (_hoveredSelectedTag == tag) {
+                          _hoveredSelectedTag = null;
+                        }
+                      });
+                      _applyFilters();
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: backgroundColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tag,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ],
@@ -970,46 +1086,32 @@ class _FilterPageState extends State<FilterPage>
     );
   }
 
-  Widget _buildResultsHeader() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      height: 2,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.transparent,
-            Colors.grey.shade300,
-            Colors.transparent,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(1),
-      ),
-    );
-  }
-
   Widget _buildResultsCards() {
     if (_filteredCharacters.isEmpty) {
       return const Center(
-        child: Text(
-          '暂无符合条件的角色',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text(
+            '暂无符合条件的角色',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _filteredCharacters.length,
-      itemBuilder: (context, index) {
-        final char = _filteredCharacters[index];
-        return _buildCharacterCard(char, index);
-      },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < _filteredCharacters.length; i++) ...[
+          _buildCharacterCard(_filteredCharacters[i]),
+          if (i < _filteredCharacters.length - 1) const SizedBox(height: 12),
+        ],
+      ],
     );
   }
 
-  Widget _buildCharacterCard(CharacterInfo char, int index) {
+  Widget _buildCharacterCard(CharacterInfo char) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1040,66 +1142,33 @@ class _FilterPageState extends State<FilterPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 名字和性别
                 Row(
                   children: [
-                    // 名字
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  char.nameCn.isNotEmpty
-                                      ? char.nameCn
-                                      : char.name,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // 性别紧跟名字
-                              _buildMatchBadge(
-                                char.gender,
-                                _matchesGender(char.gender),
-                              ),
-                            ],
-                          ),
-                          if (char.nameCn.isNotEmpty)
-                            Text(
-                              char.name,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // 排名置于最右
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: index < 3 ? Colors.amber : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      alignment: Alignment.center,
+                    Flexible(
                       child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
+                        char.nameCn.isNotEmpty ? char.nameCn : char.name,
+                        style: const TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: index < 3 ? Colors.white : Colors.black87,
-                          fontSize: 14,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    _buildMatchBadge(
+                      char.gender,
+                      _matchesGender(char.gender),
+                    ),
                   ],
                 ),
+                if (char.nameCn.isNotEmpty)
+                  Text(
+                    char.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -1390,7 +1459,6 @@ class _FilterPageState extends State<FilterPage>
 
   @override
   void dispose() {
-    _animationController.dispose();
     _popularityMinController.dispose();
     _popularityMaxController.dispose();
     _popularityExactController.dispose();

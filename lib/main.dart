@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'utils/logger.dart';
-import 'pages/filter_layout.dart';
+import 'pages/filter_page.dart';
 
 // 窗口大小常量
 // 计算方式：第一行总宽度 = 性别组(145) + 间隔(16) + 第二组(270) + 间隔(16) + 第三组(145) = 592
 // 加上外层padding(16×2) = 624
-const double kWindowWidth = 1145.0;
-const double kWindowHeight = 800.0;
+const double kWindowWidth = 875.0;
+const double kWindowHeight = 880.0;
 
 /// 桌面端入口应用，提供侧边栏导航、角色筛选与数据更新功能
 Future<void> main() async {
@@ -53,7 +53,7 @@ class MainApp extends StatelessWidget {
         fontFamily: 'HarmonyOS_Sans_SC',
       ),
       debugShowCheckedModeBanner: false,
-      home: const FilterLayout(),
+      home: const FilterPage(),
     );
   }
 }
