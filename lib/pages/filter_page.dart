@@ -90,6 +90,8 @@ class _FilterPageState extends State<FilterPage> {
   TextEditingController? _tagFieldController;
   final TextEditingController _appearanceSearchController =
       TextEditingController();
+  final TextEditingController _appearanceFieldController =
+      TextEditingController();
 
   final List<String> _selectedTags = [];
   String? _selectedAppearance;
@@ -346,25 +348,37 @@ class _FilterPageState extends State<FilterPage> {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.remove, size: 20),
-                onPressed: () => windowManager.minimize(),
-                tooltip: '最小化',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 40,
-                  minHeight: 40,
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.remove, size: 20),
+                  onPressed: () => windowManager.minimize(),
+                  tooltip: '最小化',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => windowManager.close(),
-                tooltip: '关闭',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 40,
-                  minHeight: 40,
+              Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => windowManager.close(),
+                  tooltip: '关闭',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -479,11 +493,23 @@ class _FilterPageState extends State<FilterPage> {
                     _buildFilterGroup(
                       child: _buildActionBar(),
                     ),
-                    const SizedBox(height: 12),
-                    // 第四行：筛选结果（自动占满第一行的宽度）
-                    _buildFilterGroup(
-                      child: _buildResultsCards(),
+                    const SizedBox(height: 20),
+                    // 分隔线
+                    Container(
+                      height: 1,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.grey.shade300,
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 20),
+                    // 第四行：筛选结果（不使用圆角矩形）
+                    _buildResultsCards(),
                   ],
                 );
               },
@@ -532,12 +558,12 @@ class _FilterPageState extends State<FilterPage> {
     return _HoverableChip(text: text, isActive: isActive, onTap: onTap);
   }
 
-  /// 普通标题Chip(无交互, 透明圆角矩形)
+  /// 普通标题Chip(无交互, 浅灰色圆角矩形)
   Widget _buildFilterTitleChip(String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.transparent,
+        color: Colors.grey[200],
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -548,6 +574,19 @@ class _FilterPageState extends State<FilterPage> {
           color: Colors.black87,
         ),
       ),
+    );
+  }
+
+  /// 可清除的标题Chip(当有选中项时变红,可点击清除)
+  Widget _buildClearableFilterTitleChip(
+    String text, {
+    required bool hasSelection,
+    required VoidCallback onClear,
+  }) {
+    return _ClearableChip(
+      text: text,
+      hasSelection: hasSelection,
+      onClear: onClear,
     );
   }
 
@@ -598,75 +637,16 @@ class _FilterPageState extends State<FilterPage> {
     String? value, {
     double? fixedSize,
   }) {
-    final isSelected = _selectedGender == value;
-
-    Widget buildCircle(double size) {
-      return Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue : Colors.grey[200],
-          shape: BoxShape.circle,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
-          ),
-        ),
-      );
-    }
-
-    Widget buildInkWell(Widget child) {
-      return InkWell(
-        onTap: () {
-          setState(() {
-            _selectedGender = value;
-          });
-          _applyFilters();
-        },
-        child: child,
-      );
-    }
-
-    if (fixedSize != null) {
-      return buildInkWell(
-        SizedBox(
-          width: fixedSize,
-          height: fixedSize,
-          child: buildCircle(fixedSize),
-        ),
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = constraints.biggest.width;
-        final double height = constraints.biggest.height;
-
-        double size;
-        if (width.isFinite && height.isFinite && width > 0 && height > 0) {
-          size = width < height ? width : height;
-        } else if (width.isFinite && width > 0) {
-          size = width;
-        } else if (height.isFinite && height > 0) {
-          size = height;
-        } else {
-          size = _kGenderButtonPreferredSize;
-        }
-
-        size = size.clamp(32.0, double.infinity);
-
-        return buildInkWell(
-          Center(
-            child: SizedBox(
-              width: size,
-              height: size,
-              child: buildCircle(size),
-            ),
-          ),
-        );
+    return _GenderButton(
+      label: label,
+      value: value,
+      isSelected: _selectedGender == value,
+      fixedSize: fixedSize,
+      onTap: () {
+        setState(() {
+          _selectedGender = value;
+        });
+        _applyFilters();
       },
     );
   }
@@ -768,73 +748,97 @@ class _FilterPageState extends State<FilterPage> {
           children: [
             SizedBox(
               width: _kFilterInputWidth,
-              child: TextField(
-                controller: minController,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  hintText: '↓',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  isDense: true,
+              child: Focus(
+                onFocusChange: (hasFocus) => setState(() {}),
+                child: Builder(
+                  builder: (context) {
+                    final hasFocus = Focus.of(context).hasFocus;
+                    return TextField(
+                      controller: minController,
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: hasFocus ? '' : '↓',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: isDecimal,
+                      ),
+                      inputFormatters: isDecimal
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          : [FilteringTextInputFormatter.digitsOnly],
+                    );
+                  },
                 ),
-                style: const TextStyle(fontSize: 12),
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: isDecimal,
-                ),
-                inputFormatters: isDecimal
-                    ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
-                    : [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
             const SizedBox(width: 4),
             SizedBox(
               width: _kFilterInputWidth,
-              child: TextField(
-                controller: exactController,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  hintText: '-',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  isDense: true,
+              child: Focus(
+                onFocusChange: (hasFocus) => setState(() {}),
+                child: Builder(
+                  builder: (context) {
+                    final hasFocus = Focus.of(context).hasFocus;
+                    return TextField(
+                      controller: exactController,
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: hasFocus ? '' : '-',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: isDecimal,
+                      ),
+                      inputFormatters: isDecimal
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          : [FilteringTextInputFormatter.digitsOnly],
+                    );
+                  },
                 ),
-                style: const TextStyle(fontSize: 12),
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: isDecimal,
-                ),
-                inputFormatters: isDecimal
-                    ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
-                    : [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
             const SizedBox(width: 4),
             SizedBox(
               width: _kFilterInputWidth,
-              child: TextField(
-                controller: maxController,
-                textAlign: TextAlign.center,
-                decoration: const InputDecoration(
-                  hintText: '↑',
-                  border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 8,
-                  ),
-                  isDense: true,
+              child: Focus(
+                onFocusChange: (hasFocus) => setState(() {}),
+                child: Builder(
+                  builder: (context) {
+                    final hasFocus = Focus.of(context).hasFocus;
+                    return TextField(
+                      controller: maxController,
+                      textAlign: TextAlign.center,
+                      decoration: InputDecoration(
+                        hintText: hasFocus ? '' : '↑',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
+                        isDense: true,
+                      ),
+                      style: const TextStyle(fontSize: 12),
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: isDecimal,
+                      ),
+                      inputFormatters: isDecimal
+                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          : [FilteringTextInputFormatter.digitsOnly],
+                    );
+                  },
                 ),
-                style: const TextStyle(fontSize: 12),
-                keyboardType: TextInputType.numberWithOptions(
-                  decimal: isDecimal,
-                ),
-                inputFormatters: isDecimal
-                    ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
-                    : [FilteringTextInputFormatter.digitsOnly],
               ),
             ),
           ],
@@ -848,7 +852,16 @@ class _FilterPageState extends State<FilterPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _buildFilterTitleChip('标签'),
+        _buildClearableFilterTitleChip(
+          '标签',
+          hasSelection: _selectedTags.isNotEmpty,
+          onClear: () {
+            setState(() {
+              _selectedTags.clear();
+            });
+            _applyFilters();
+          },
+        ),
         const SizedBox(width: 8),
         SizedBox(
           width: _kTagInputWidth,
@@ -874,20 +887,30 @@ class _FilterPageState extends State<FilterPage> {
             fieldViewBuilder:
                 (context, controller, focusNode, onEditingComplete) {
                   _tagFieldController = controller;
-                  return TextField(
-                    controller: controller,
-                    focusNode: focusNode,
-                    decoration: const InputDecoration(
-                      hintText: '搜索...',
-                      border: UnderlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      isDense: true,
+                  return Focus(
+                    onFocusChange: (hasFocus) => setState(() {}),
+                    child: Builder(
+                      builder: (context) {
+                        final hasFocus = Focus.of(context).hasFocus;
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: hasFocus ? '' : '搜索...',
+                            border: const UnderlineInputBorder(),
+                            enabledBorder: const UnderlineInputBorder(),
+                            focusedBorder: const UnderlineInputBorder(),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            isDense: true,
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                          onEditingComplete: onEditingComplete,
+                        );
+                      },
                     ),
-                    style: const TextStyle(fontSize: 12),
-                    onEditingComplete: onEditingComplete,
                   );
                 },
             optionsViewBuilder: (context, onSelected, options) {
@@ -987,7 +1010,18 @@ class _FilterPageState extends State<FilterPage> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildFilterTitleChip('作品'),
+        _buildClearableFilterTitleChip(
+          '作品',
+          hasSelection: _selectedAppearance != null,
+          onClear: () {
+            setState(() {
+              _selectedAppearance = null;
+              _appearanceSearchController.clear();
+              _appearanceFieldController.clear();
+            });
+            _applyFilters();
+          },
+        ),
         const SizedBox(height: 4),
         SizedBox(
           width: _kFilterInputWidth * 3 + 8,
@@ -1013,35 +1047,33 @@ class _FilterPageState extends State<FilterPage> {
             },
             fieldViewBuilder:
                 (context, controller, focusNode, onEditingComplete) {
-                  _appearanceSearchController.text = controller.text;
+                  _appearanceFieldController.text = controller.text;
+                  // 当选中作品时，同步文本到 controller
+                  // 当清除作品时 (_selectedAppearance == null)，也要同步清空
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    final targetText = _selectedAppearance ?? '';
+                    if (controller.text != targetText) {
+                      controller.text = targetText;
+                      if (targetText.isNotEmpty) {
+                        controller.selection = TextSelection.fromPosition(
+                          TextPosition(offset: controller.text.length),
+                        );
+                      }
+                    }
+                  });
                   return SizedBox(
                     width: _kFilterInputWidth * 3 + 8,
                     child: TextField(
                       controller: controller,
                       focusNode: focusNode,
                       decoration: InputDecoration(
-                        hintText: '搜索...',
+                        hintText: focusNode.hasFocus ? '' : '搜索...',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 8,
                         ),
                         isDense: true,
-                        suffixIcon: _selectedAppearance != null
-                            ? IconButton(
-                                icon: const Icon(Icons.clear, size: 16),
-                                onPressed: () {
-                                  setState(() {
-                                    _selectedAppearance = null;
-                                    _appearanceSearchController.clear();
-                                    controller.clear();
-                                  });
-                                  _applyFilters();
-                                },
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              )
-                            : null,
                       ),
                       style: const TextStyle(fontSize: 12),
                       onEditingComplete: onEditingComplete,
@@ -1475,6 +1507,7 @@ class _FilterPageState extends State<FilterPage> {
     _latestYearMaxController.dispose();
     _latestYearExactController.dispose();
     _appearanceSearchController.dispose();
+    _appearanceFieldController.dispose();
     super.dispose();
   }
 }
@@ -1495,26 +1528,130 @@ class _HoverableChip extends StatefulWidget {
   State<_HoverableChip> createState() => _HoverableChipState();
 }
 
-class _HoverableChipState extends State<_HoverableChip> {
-  bool _isHovered = false;
+class _HoverableChipState extends State<_HoverableChip> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  Animation<Color?>? _colorAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _updateColorAnimation();
+  }
+
+  @override
+  void didUpdateWidget(_HoverableChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive != widget.isActive) {
+      _animationController.reset();
+      _updateColorAnimation();
+    }
+  }
+
+  void _updateColorAnimation() {
+    final beginColor = widget.isActive
+        ? const Color(0xFFFFEB3B) // 明亮的黄色
+        : const Color(0xFF81C784); // 绿色
+    final endColor = widget.isActive
+        ? const Color(0xFFFDD835) // 更暗的黄色hover
+        : const Color(0xFF66BB6A); // 绿色hover
+
+    _colorAnimation = ColorTween(
+      begin: beginColor,
+      end: endColor,
+    ).animate(_animationController);
+  }
+
+  Color _getCurrentColor() {
+    return _colorAnimation?.value ?? 
+        (widget.isActive ? const Color(0xFFFFEB3B) : const Color(0xFF81C784));
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
+      onEnter: (_) {
+        _animationController.forward();
+      },
+      onExit: (_) {
+        _animationController.reverse();
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedBuilder(
+          animation: _animationController,
+          builder: (context, child) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getCurrentColor(),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: child,
+            );
+          },
+          child: Text(
+            widget.text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: widget.isActive ? Colors.black87 : Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 可清除的Chip组件(有选中项时变红,可点击清除)
+class _ClearableChip extends StatefulWidget {
+  final String text;
+  final bool hasSelection;
+  final VoidCallback onClear;
+
+  const _ClearableChip({
+    required this.text,
+    required this.hasSelection,
+    required this.onClear,
+  });
+
+  @override
+  State<_ClearableChip> createState() => _ClearableChipState();
+}
+
+class _ClearableChipState extends State<_ClearableChip> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = widget.hasSelection
+        ? (_isHovered ? Colors.red[700]! : Colors.red)
+        : Colors.grey[200]!;
+    
+    final textColor = widget.hasSelection ? Colors.white : Colors.black87;
+    
+    return MouseRegion(
+      cursor: widget.hasSelection ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: widget.hasSelection ? widget.onClear : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: widget.isActive
-                ? (_isHovered
-                      ? const Color(0xFF66BB6A)
-                      : const Color(0xFF81C784))
-                : (_isHovered ? Colors.grey[300] : Colors.grey[200]),
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
@@ -1522,10 +1659,112 @@ class _HoverableChipState extends State<_HoverableChip> {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,
-              color: widget.isActive ? Colors.white : Colors.black87,
+              color: textColor,
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// 性别按钮组件(带hover动画)
+class _GenderButton extends StatefulWidget {
+  final String label;
+  final String? value;
+  final bool isSelected;
+  final double? fixedSize;
+  final VoidCallback onTap;
+
+  const _GenderButton({
+    required this.label,
+    required this.value,
+    required this.isSelected,
+    required this.onTap,
+    this.fixedSize,
+  });
+
+  @override
+  State<_GenderButton> createState() => _GenderButtonState();
+}
+
+class _GenderButtonState extends State<_GenderButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget buildCircle(double size) {
+      final backgroundColor = widget.isSelected
+          ? (_isHovered ? Colors.blue[800]! : Colors.blue)
+          : (_isHovered ? Colors.grey[400]! : Colors.grey[200]!);
+
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          widget.label,
+          style: TextStyle(
+            color: widget.isSelected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
+    Widget buildMouseRegion(Widget child) {
+      return MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: child,
+        ),
+      );
+    }
+
+    if (widget.fixedSize != null) {
+      return buildMouseRegion(
+        SizedBox(
+          width: widget.fixedSize,
+          height: widget.fixedSize,
+          child: buildCircle(widget.fixedSize!),
+        ),
+      );
+    }
+
+    return buildMouseRegion(
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final double width = constraints.biggest.width;
+          final double height = constraints.biggest.height;
+
+          double size;
+          if (width.isFinite && height.isFinite && width > 0 && height > 0) {
+            size = width < height ? width : height;
+          } else if (width.isFinite && width > 0) {
+            size = width;
+          } else if (height.isFinite && height > 0) {
+            size = height;
+          } else {
+            size = 40; // fallback size
+          }
+
+          size = size.clamp(32.0, double.infinity);
+
+          return Center(
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: buildCircle(size),
+            ),
+          );
+        },
       ),
     );
   }
