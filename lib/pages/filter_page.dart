@@ -343,6 +343,13 @@ class _FilterPageState extends State<FilterPage> {
           child: Row(
             children: [
               const SizedBox(width: 20),
+              // 添加程序图标
+              Image.asset(
+                'public/icons/favicon.png',
+                width: 32,
+                height: 32,
+              ),
+              const SizedBox(width: 12),
               const Text(
                 '猜猜呗笑传之查查吧',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),

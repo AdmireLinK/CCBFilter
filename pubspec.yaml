@@ -19,6 +19,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - public/icons/favicon.png
   fonts:
     - family: HarmonyOS_Sans_SC
       fonts:

@@ -25,11 +25,13 @@ Future<void> main() async {
       center: true,
       backgroundColor: Colors.transparent,
       titleBarStyle: TitleBarStyle.hidden,
+      title: '猜猜呗笑传之查查吧',
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.setResizable(false);
       await windowManager.setAsFrameless();
+      await windowManager.setTitle('猜猜呗笑传之查查吧');
       await windowManager.show();
       await windowManager.focus();
     });
