@@ -351,7 +351,7 @@ class _FilterPageState extends State<FilterPage> {
               ),
               const SizedBox(width: 12),
               const Text(
-                '猜猜呗笑传之查查吧',
+                '猜猜呗笑传之查查呗',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const Spacer(),

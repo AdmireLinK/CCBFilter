@@ -31,7 +31,7 @@ Future<void> main() async {
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.setResizable(false);
       await windowManager.setAsFrameless();
-      await windowManager.setTitle('猜猜呗笑传之查查吧');
+      await windowManager.setTitle('猜猜呗笑传之查查呗');
       await windowManager.show();
       await windowManager.focus();
     });
