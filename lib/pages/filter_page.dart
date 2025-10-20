@@ -764,13 +764,16 @@ class _FilterPageState extends State<FilterPage> {
                       controller: minController,
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
-                        hintText: hasFocus ? '' : '↓',
+                        hintText: hasFocus ? '' : '↑',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 8,
                         ),
                         isDense: true,
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                        ),
                       ),
                       style: const TextStyle(fontSize: 12),
                       keyboardType: TextInputType.numberWithOptions(
@@ -803,6 +806,9 @@ class _FilterPageState extends State<FilterPage> {
                           vertical: 8,
                         ),
                         isDense: true,
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                        ),
                       ),
                       style: const TextStyle(fontSize: 12),
                       keyboardType: TextInputType.numberWithOptions(
@@ -828,13 +834,16 @@ class _FilterPageState extends State<FilterPage> {
                       controller: maxController,
                       textAlign: TextAlign.center,
                       decoration: InputDecoration(
-                        hintText: hasFocus ? '' : '↑',
+                        hintText: hasFocus ? '' : '↓',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 8,
                         ),
                         isDense: true,
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                        ),
                       ),
                       style: const TextStyle(fontSize: 12),
                       keyboardType: TextInputType.numberWithOptions(
@@ -906,7 +915,9 @@ class _FilterPageState extends State<FilterPage> {
                             hintText: hasFocus ? '' : '搜索...',
                             border: const UnderlineInputBorder(),
                             enabledBorder: const UnderlineInputBorder(),
-                            focusedBorder: const UnderlineInputBorder(),
+                            focusedBorder: const UnderlineInputBorder(
+                              borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,
                               vertical: 8,
@@ -1081,6 +1092,9 @@ class _FilterPageState extends State<FilterPage> {
                           vertical: 8,
                         ),
                         isDense: true,
+                        focusedBorder: const OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                        ),
                       ),
                       style: const TextStyle(fontSize: 12),
                       onEditingComplete: onEditingComplete,
@@ -1257,18 +1271,37 @@ class _FilterPageState extends State<FilterPage> {
   }
 
   Widget _buildMatchBadge(String text, bool matches) {
+    // 将性别文字转换为符号
+    String displayText;
+    switch (text) {
+      case '男':
+        displayText = '♂️';
+        break;
+      case '女':
+        displayText = '♀️';
+        break;
+      case '其它':
+        displayText = '❓';
+        break;
+      default:
+        displayText = text;
+    }
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: 32,
+      height: 32,
       decoration: BoxDecoration(
         color: matches ? const Color(0xFF81C784) : Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
+        shape: BoxShape.circle,
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: matches ? Colors.white : Colors.black87,
+      child: Center(
+        child: Text(
+          displayText,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: matches ? Colors.white : Colors.black87,
+          ),
         ),
       ),
     );
