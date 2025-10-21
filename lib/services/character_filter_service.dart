@@ -118,126 +118,172 @@ class CharacterFilterService {
     String? appearance,
   }) {
     return characters.where((char) {
-      // 性别筛选
       if (gender != null && char.gender != gender) {
         return false;
       }
 
-      // 热度筛选: 精确值±10%, 最小*0.8, 最大*1.2
+      final double popularityValue = char.popularity.toDouble();
+      final int workCountValue = char.workCount;
+      final double ratingValue = char.highestRating;
+      final int earliestValue = char.earliestAppearance;
+      final int latestValue = char.latestAppearance;
+
       if (popularityExact != null) {
+        final double exactCenter = popularityExact.toDouble();
+        final double tolerance = exactCenter * 0.053;
+        if (popularityValue < exactCenter - tolerance ||
+            popularityValue > exactCenter + tolerance) {
+          return false;
+        }
+      }
+      if (popularityMin != null) {
+        final double minInput = popularityMin.toDouble();
         if (popularityFuzzy) {
-          final fuzzyRange = (popularityExact * 0.1).round();
-          if (char.popularity < popularityExact - fuzzyRange ||
-              char.popularity > popularityExact + fuzzyRange) {
+          final double upper = minInput * 1.25;
+          if (popularityValue <= minInput || popularityValue >= upper) {
             return false;
           }
         } else {
-          if (char.popularity != popularityExact) return false;
-        }
-      } else {
-        if (popularityMin != null) {
-          final fuzzyMin = popularityFuzzy
-              ? (popularityMin * 0.8).round()
-              : popularityMin;
-          if (char.popularity < fuzzyMin) {
+          final double threshold = minInput * 1.25;
+          if (popularityValue < threshold) {
             return false;
           }
         }
-        if (popularityMax != null) {
-          final fuzzyMax = popularityFuzzy
-              ? (popularityMax * 1.2).round()
-              : popularityMax;
-          if (char.popularity > fuzzyMax) {
+      }
+      if (popularityMax != null) {
+        final double maxInput = popularityMax.toDouble();
+        if (popularityFuzzy) {
+          final double lower = maxInput * 0.8;
+          if (popularityValue >= maxInput || popularityValue <= lower) {
+            return false;
+          }
+        } else {
+          final double threshold = maxInput * 0.8;
+          if (popularityValue > threshold) {
             return false;
           }
         }
       }
 
-      // 作品数筛选: 精确值无模糊, 最小-2, 最大+2
-      if (workCountExact != null) {
-        if (char.workCount != workCountExact) {
-          return false;
-        }
-      } else {
-        if (workCountMin != null) {
-          final fuzzyMin = workCountFuzzy ? workCountMin - 2 : workCountMin;
-          if (char.workCount < fuzzyMin) {
+      if (workCountExact != null && workCountValue != workCountExact) {
+        return false;
+      }
+      if (workCountMin != null) {
+        if (workCountFuzzy) {
+          final int upper = workCountMin + 2;
+          if (workCountValue <= workCountMin || workCountValue >= upper) {
+            return false;
+          }
+        } else {
+          final int threshold = workCountMin + 2;
+          if (workCountValue < threshold) {
             return false;
           }
         }
-        if (workCountMax != null) {
-          final fuzzyMax = workCountFuzzy ? workCountMax + 2 : workCountMax;
-          if (char.workCount > fuzzyMax) {
+      }
+      if (workCountMax != null) {
+        if (workCountFuzzy) {
+          final int lower = workCountMax - 2;
+          if (workCountValue >= workCountMax || workCountValue <= lower) {
+            return false;
+          }
+        } else {
+          final int threshold = workCountMax - 2;
+          if (workCountValue > threshold) {
             return false;
           }
         }
       }
 
-      // 最高评分筛选: 精确值±0.6, 最小-1, 最大+1
       if (ratingExact != null) {
+        const double tolerance = 0.6;
+        if (ratingValue < ratingExact - tolerance ||
+            ratingValue > ratingExact + tolerance) {
+          return false;
+        }
+      }
+      if (ratingMin != null) {
         if (ratingFuzzy) {
-          const fuzzyRange = 0.6;
-          if (char.highestRating < ratingExact - fuzzyRange ||
-              char.highestRating > ratingExact + fuzzyRange) {
+          final double upper = ratingMin + 1.0;
+          if (ratingValue <= ratingMin || ratingValue >= upper) {
             return false;
           }
         } else {
-          if (char.highestRating != ratingExact) return false;
-        }
-      } else {
-        if (ratingMin != null) {
-          final fuzzyMin = ratingFuzzy ? ratingMin - 1.0 : ratingMin;
-          if (char.highestRating < fuzzyMin) {
+          final double threshold = ratingMin + 1.0;
+          if (ratingValue < threshold) {
             return false;
           }
         }
-        if (ratingMax != null) {
-          final fuzzyMax = ratingFuzzy ? ratingMax + 1.0 : ratingMax;
-          if (char.highestRating > fuzzyMax) {
+      }
+      if (ratingMax != null) {
+        if (ratingFuzzy) {
+          final double lower = ratingMax - 1.0;
+          if (ratingValue >= ratingMax || ratingValue <= lower) {
+            return false;
+          }
+        } else {
+          final double threshold = ratingMax - 1.0;
+          if (ratingValue > threshold) {
             return false;
           }
         }
       }
 
-      // 最早登场年份筛选: 精确值无模糊, 最小+2, 最大-2
-      if (earliestYearExact != null) {
-        if (char.earliestAppearance != earliestYearExact) {
-          return false;
-        }
-      } else {
-        if (earliestYearMin != null) {
-          final fuzzyMin = earliestYearFuzzy
-              ? earliestYearMin + 2
-              : earliestYearMin;
-          if (char.earliestAppearance < fuzzyMin) {
+      if (earliestYearExact != null && earliestValue != earliestYearExact) {
+        return false;
+      }
+      if (earliestYearMin != null) {
+        if (earliestYearFuzzy) {
+          final int upper = earliestYearMin + 2;
+          if (earliestValue <= earliestYearMin || earliestValue >= upper) {
+            return false;
+          }
+        } else {
+          final int threshold = earliestYearMin + 2;
+          if (earliestValue < threshold) {
             return false;
           }
         }
-        if (earliestYearMax != null) {
-          final fuzzyMax = earliestYearFuzzy
-              ? earliestYearMax - 2
-              : earliestYearMax;
-          if (char.earliestAppearance > fuzzyMax) {
+      }
+      if (earliestYearMax != null) {
+        if (earliestYearFuzzy) {
+          final int lower = earliestYearMax - 2;
+          if (earliestValue >= earliestYearMax || earliestValue <= lower) {
+            return false;
+          }
+        } else {
+          final int threshold = earliestYearMax - 2;
+          if (earliestValue > threshold) {
             return false;
           }
         }
       }
 
-      // 最晚登场年份筛选: 精确值无模糊, 最小-2, 最大+2
-      if (latestYearExact != null) {
-        if (char.latestAppearance != latestYearExact) {
-          return false;
-        }
-      } else {
-        if (latestYearMin != null) {
-          final fuzzyMin = latestYearFuzzy ? latestYearMin - 2 : latestYearMin;
-          if (char.latestAppearance < fuzzyMin) {
+      if (latestYearExact != null && latestValue != latestYearExact) {
+        return false;
+      }
+      if (latestYearMin != null) {
+        if (latestYearFuzzy) {
+          final int upper = latestYearMin + 2;
+          if (latestValue <= latestYearMin || latestValue >= upper) {
+            return false;
+          }
+        } else {
+          final int threshold = latestYearMin + 2;
+          if (latestValue < threshold) {
             return false;
           }
         }
-        if (latestYearMax != null) {
-          final fuzzyMax = latestYearFuzzy ? latestYearMax + 2 : latestYearMax;
-          if (char.latestAppearance > fuzzyMax) {
+      }
+      if (latestYearMax != null) {
+        if (latestYearFuzzy) {
+          final int lower = latestYearMax - 2;
+          if (latestValue >= latestYearMax || latestValue <= lower) {
+            return false;
+          }
+        } else {
+          final int threshold = latestYearMax - 2;
+          if (latestValue > threshold) {
             return false;
           }
         }
