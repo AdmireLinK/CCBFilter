@@ -675,7 +675,10 @@ class _FilterPageState extends State<FilterPage> {
               maxController: _popularityMaxController,
               exactController: _popularityExactController,
               fuzzy: _popularityFuzzy,
-              onFuzzyChanged: (v) => setState(() => _popularityFuzzy = v),
+              onFuzzyChanged: (v) {
+                setState(() => _popularityFuzzy = v);
+                _applyFilters();
+              },
             ),
             const SizedBox(width: 12),
             _buildCompactRangeFilter(
@@ -684,7 +687,10 @@ class _FilterPageState extends State<FilterPage> {
               maxController: _workCountMaxController,
               exactController: _workCountExactController,
               fuzzy: _workCountFuzzy,
-              onFuzzyChanged: (v) => setState(() => _workCountFuzzy = v),
+              onFuzzyChanged: (v) {
+                setState(() => _workCountFuzzy = v);
+                _applyFilters();
+              },
             ),
           ],
         ),
@@ -699,7 +705,10 @@ class _FilterPageState extends State<FilterPage> {
               maxController: _ratingMaxController,
               exactController: _ratingExactController,
               fuzzy: _ratingFuzzy,
-              onFuzzyChanged: (v) => setState(() => _ratingFuzzy = v),
+              onFuzzyChanged: (v) {
+                setState(() => _ratingFuzzy = v);
+                _applyFilters();
+              },
               isDecimal: true,
             ),
             const SizedBox(width: 12),
@@ -720,7 +729,10 @@ class _FilterPageState extends State<FilterPage> {
           maxController: _latestYearMaxController,
           exactController: _latestYearExactController,
           fuzzy: _latestYearFuzzy,
-          onFuzzyChanged: (v) => setState(() => _latestYearFuzzy = v),
+          onFuzzyChanged: (v) {
+            setState(() => _latestYearFuzzy = v);
+            _applyFilters();
+          },
         ),
         const SizedBox(height: 12),
         _buildCompactRangeFilter(
@@ -729,7 +741,10 @@ class _FilterPageState extends State<FilterPage> {
           maxController: _earliestYearMaxController,
           exactController: _earliestYearExactController,
           fuzzy: _earliestYearFuzzy,
-          onFuzzyChanged: (v) => setState(() => _earliestYearFuzzy = v),
+          onFuzzyChanged: (v) {
+            setState(() => _earliestYearFuzzy = v);
+            _applyFilters();
+          },
         ),
       ],
     );
