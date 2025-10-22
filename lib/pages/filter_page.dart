@@ -228,6 +228,52 @@ class _FilterPageState extends State<FilterPage> {
     });
   }
 
+  List<String> _searchAppearances(String query) {
+    if (query.isEmpty) {
+      return const <String>[];
+    }
+    return _rankMatches(_allAppearances, query);
+  }
+
+  List<String> _rankMatches(Iterable<String> source, String query) {
+    final lowerQuery = query.toLowerCase();
+    final matches = <_OptionMatch>[];
+
+    for (final option in source) {
+      final lowerOption = option.toLowerCase();
+      final position = lowerOption.indexOf(lowerQuery);
+      if (position == -1) {
+        continue;
+      }
+
+      final int score;
+      if (lowerOption == lowerQuery) {
+        score = 0;
+      } else if (lowerOption.startsWith(lowerQuery)) {
+        score = 1;
+      } else {
+        score = 2;
+      }
+
+      matches.add(_OptionMatch(option, score, position));
+    }
+
+    matches.sort((a, b) {
+      if (a.score != b.score) {
+        return a.score.compareTo(b.score);
+      }
+      if (a.position != b.position) {
+        return a.position.compareTo(b.position);
+      }
+      if (a.value.length != b.value.length) {
+        return a.value.length.compareTo(b.value.length);
+      }
+      return a.value.compareTo(b.value);
+    });
+
+    return matches.map((m) => m.value).toList(growable: false);
+  }
+
   void _toggleDataSource() async {
     setState(() {
       _useAnimeOnly = !_useAnimeOnly;
@@ -1066,13 +1112,9 @@ class _FilterPageState extends State<FilterPage> {
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<String>.empty();
               }
-              return _allAppearances
-                  .where(
-                    (a) => a.toLowerCase().contains(
-                      textEditingValue.text.toLowerCase(),
-                    ),
-                  )
-                  .take(20);
+              final matches =
+                  _searchAppearances(textEditingValue.text).take(20);
+              return matches;
             },
             onSelected: (String selection) {
               setState(() {
@@ -1571,6 +1613,14 @@ class _FilterPageState extends State<FilterPage> {
 }
 
 /// 可hover的Chip组件
+class _OptionMatch {
+  const _OptionMatch(this.value, this.score, this.position);
+
+  final String value;
+  final int score;
+  final int position;
+}
+
 class _HoverableChip extends StatefulWidget {
   final String text;
   final bool isActive;
