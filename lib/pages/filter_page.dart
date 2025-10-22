@@ -54,20 +54,20 @@ class _FilterPageState extends State<FilterPage> {
       TextEditingController();
   final TextEditingController _popularityExactController =
       TextEditingController();
-  bool _popularityFuzzy = true;
+  bool _popularityFuzzy = false;
 
   // 作品数
   final TextEditingController _workCountMinController = TextEditingController();
   final TextEditingController _workCountMaxController = TextEditingController();
   final TextEditingController _workCountExactController =
       TextEditingController();
-  bool _workCountFuzzy = true;
+  bool _workCountFuzzy = false;
 
   // 评分
   final TextEditingController _ratingMinController = TextEditingController();
   final TextEditingController _ratingMaxController = TextEditingController();
   final TextEditingController _ratingExactController = TextEditingController();
-  bool _ratingFuzzy = true;
+  bool _ratingFuzzy = false;
 
   // 最早登场
   final TextEditingController _earliestYearMinController =
@@ -76,7 +76,7 @@ class _FilterPageState extends State<FilterPage> {
       TextEditingController();
   final TextEditingController _earliestYearExactController =
       TextEditingController();
-  bool _earliestYearFuzzy = true;
+  bool _earliestYearFuzzy = false;
 
   // 最晚登场
   final TextEditingController _latestYearMinController =
@@ -85,7 +85,7 @@ class _FilterPageState extends State<FilterPage> {
       TextEditingController();
   final TextEditingController _latestYearExactController =
       TextEditingController();
-  bool _latestYearFuzzy = true;
+  bool _latestYearFuzzy = false;
 
   TextEditingController? _tagFieldController;
   final TextEditingController _appearanceSearchController =
@@ -315,15 +315,18 @@ class _FilterPageState extends State<FilterPage> {
 
     _scheduleGenderGroupHeightUpdate();
 
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTitleBar(),
-            _buildFilterSection(),
-          ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        body: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildTitleBar(),
+              _buildFilterSection(),
+            ],
+          ),
         ),
       ),
     );
@@ -712,21 +715,21 @@ class _FilterPageState extends State<FilterPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildCompactRangeFilter(
-          label: '最早',
-          minController: _earliestYearMinController,
-          maxController: _earliestYearMaxController,
-          exactController: _earliestYearExactController,
-          fuzzy: _earliestYearFuzzy,
-          onFuzzyChanged: (v) => setState(() => _earliestYearFuzzy = v),
-        ),
-        const SizedBox(height: 12),
-        _buildCompactRangeFilter(
           label: '最晚',
           minController: _latestYearMinController,
           maxController: _latestYearMaxController,
           exactController: _latestYearExactController,
           fuzzy: _latestYearFuzzy,
           onFuzzyChanged: (v) => setState(() => _latestYearFuzzy = v),
+        ),
+        const SizedBox(height: 12),
+        _buildCompactRangeFilter(
+          label: '最早',
+          minController: _earliestYearMinController,
+          maxController: _earliestYearMaxController,
+          exactController: _earliestYearExactController,
+          fuzzy: _earliestYearFuzzy,
+          onFuzzyChanged: (v) => setState(() => _earliestYearFuzzy = v),
         ),
       ],
     );

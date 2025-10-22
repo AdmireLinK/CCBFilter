@@ -7,7 +7,7 @@ import 'pages/filter_page.dart';
 
 // 窗口大小常量
 const double kWindowWidth = 875.0;
-const double kWindowHeight = 910.0;
+const double kWindowHeight = 916.0;
 
 /// 桌面端入口应用，提供侧边栏导航、角色筛选与数据更新功能
 Future<void> main() async {
