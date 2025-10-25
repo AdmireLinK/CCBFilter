@@ -33,8 +33,7 @@ class _FilterPageState extends State<FilterPage> {
   static const double _kFilterInputWidth = 65;
   static const double _kTagInputWidth = 100;
   static const double _kGenderColumnSpacing = 4;
-  static const double _kGenderColumnWidth =
-      80 + _kGenderColumnSpacing * 2;
+  static const double _kGenderColumnWidth = 80 + _kGenderColumnSpacing * 2;
   static const double _kGenderButtonPreferredSize =
       (_kGenderColumnWidth - _kGenderColumnSpacing) / 2;
   static const double _kGenderButtonMinSize = 40;
@@ -127,8 +126,7 @@ class _FilterPageState extends State<FilterPage> {
   void _scheduleGenderGroupHeightUpdate() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final numericHeight =
-          _numericGroupKey.currentContext?.size?.height;
+      final numericHeight = _numericGroupKey.currentContext?.size?.height;
       final yearHeight = _yearGroupKey.currentContext?.size?.height;
       final targetHeight = _maxDouble(numericHeight, yearHeight);
 
@@ -229,7 +227,6 @@ class _FilterPageState extends State<FilterPage> {
     });
   }
 
-
   void _toggleDataSource() async {
     setState(() {
       _useAnimeOnly = !_useAnimeOnly;
@@ -324,10 +321,7 @@ class _FilterPageState extends State<FilterPage> {
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildTitleBar(),
-              _buildFilterSection(),
-            ],
+            children: [_buildTitleBar(), _buildFilterSection()],
           ),
         ),
       ),
@@ -349,11 +343,7 @@ class _FilterPageState extends State<FilterPage> {
             children: [
               const SizedBox(width: 20),
               // 添加程序图标
-              Image.asset(
-                'public/icons/favicon.png',
-                width: 32,
-                height: 32,
-              ),
+              Image.asset('public/icons/favicon.png', width: 32, height: 32),
               const SizedBox(width: 12),
               const Text(
                 '猜猜呗笑传之查查呗',
@@ -469,8 +459,9 @@ class _FilterPageState extends State<FilterPage> {
             child: Builder(
               builder: (_) {
                 final double genderButtonSize = _computeGenderButtonSize();
-                final double genderGroupHeight =
-                    _computeGenderGroupHeight(genderButtonSize);
+                final double genderGroupHeight = _computeGenderGroupHeight(
+                  genderButtonSize,
+                );
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -497,14 +488,10 @@ class _FilterPageState extends State<FilterPage> {
                     ),
                     const SizedBox(height: 12),
                     // 第二行：标签筛选（自动占满第一行的宽度）
-                    _buildFilterGroup(
-                      child: _buildTagFilter(),
-                    ),
+                    _buildFilterGroup(child: _buildTagFilter()),
                     const SizedBox(height: 12),
                     // 第三行：操作栏（自动占满第一行的宽度）
-                    _buildFilterGroup(
-                      child: _buildActionBar(),
-                    ),
+                    _buildFilterGroup(child: _buildActionBar()),
                     const SizedBox(height: 20),
                     // 分隔线
                     Container(
@@ -644,11 +631,7 @@ class _FilterPageState extends State<FilterPage> {
     );
   }
 
-  Widget _buildGenderButton(
-    String label,
-    String? value, {
-    double? fixedSize,
-  }) {
+  Widget _buildGenderButton(String label, String? value, {double? fixedSize}) {
     return _GenderButton(
       label: label,
       value: value,
@@ -792,7 +775,10 @@ class _FilterPageState extends State<FilterPage> {
                         ),
                         isDense: true,
                         focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                          borderSide: BorderSide(
+                            color: Color(0xFF66CCFF),
+                            width: 2.0,
+                          ),
                         ),
                       ),
                       style: const TextStyle(fontSize: 12),
@@ -800,7 +786,11 @@ class _FilterPageState extends State<FilterPage> {
                         decimal: isDecimal,
                       ),
                       inputFormatters: isDecimal
-                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          ? [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ]
                           : [FilteringTextInputFormatter.digitsOnly],
                     );
                   },
@@ -827,7 +817,10 @@ class _FilterPageState extends State<FilterPage> {
                         ),
                         isDense: true,
                         focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                          borderSide: BorderSide(
+                            color: Color(0xFF66CCFF),
+                            width: 2.0,
+                          ),
                         ),
                       ),
                       style: const TextStyle(fontSize: 12),
@@ -835,7 +828,11 @@ class _FilterPageState extends State<FilterPage> {
                         decimal: isDecimal,
                       ),
                       inputFormatters: isDecimal
-                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          ? [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ]
                           : [FilteringTextInputFormatter.digitsOnly],
                     );
                   },
@@ -862,7 +859,10 @@ class _FilterPageState extends State<FilterPage> {
                         ),
                         isDense: true,
                         focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                          borderSide: BorderSide(
+                            color: Color(0xFF66CCFF),
+                            width: 2.0,
+                          ),
                         ),
                       ),
                       style: const TextStyle(fontSize: 12),
@@ -870,7 +870,11 @@ class _FilterPageState extends State<FilterPage> {
                         decimal: isDecimal,
                       ),
                       inputFormatters: isDecimal
-                          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+                          ? [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ]
                           : [FilteringTextInputFormatter.digitsOnly],
                     );
                   },
@@ -906,10 +910,7 @@ class _FilterPageState extends State<FilterPage> {
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<String>.empty();
               }
-              return _filterService.searchTags(
-                _allTags,
-                textEditingValue.text,
-              );
+              return _filterService.searchTags(_allTags, textEditingValue.text);
             },
             onSelected: (String selection) {
               if (!_selectedTags.contains(selection)) {
@@ -936,7 +937,10 @@ class _FilterPageState extends State<FilterPage> {
                             border: const UnderlineInputBorder(),
                             enabledBorder: const UnderlineInputBorder(),
                             focusedBorder: const UnderlineInputBorder(
-                              borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                              borderSide: BorderSide(
+                                color: Color(0xFF66CCFF),
+                                width: 2.0,
+                              ),
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -1068,10 +1072,11 @@ class _FilterPageState extends State<FilterPage> {
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<String>.empty();
               }
-        final matches =
-          PinyinSearch.rank(_allAppearances, textEditingValue.text)
-            .take(20);
-        return matches;
+              final matches = PinyinSearch.rank(
+                _allAppearances,
+                textEditingValue.text,
+              ).take(20);
+              return matches;
             },
             onSelected: (String selection) {
               setState(() {
@@ -1110,7 +1115,10 @@ class _FilterPageState extends State<FilterPage> {
                         ),
                         isDense: true,
                         focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF66CCFF), width: 2.0),
+                          borderSide: BorderSide(
+                            color: Color(0xFF66CCFF),
+                            width: 2.0,
+                          ),
                         ),
                       ),
                       style: const TextStyle(fontSize: 12),
@@ -1225,19 +1233,13 @@ class _FilterPageState extends State<FilterPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _buildMatchBadge(
-                      char.gender,
-                      _matchesGender(char.gender),
-                    ),
+                    _buildMatchBadge(char.gender, _matchesGender(char.gender)),
                   ],
                 ),
                 if (char.nameCn.isNotEmpty)
                   Text(
                     char.name,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 const SizedBox(height: 12),
                 Wrap(
@@ -1303,7 +1305,7 @@ class _FilterPageState extends State<FilterPage> {
       default:
         displayText = text;
     }
-    
+
     return Container(
       width: 32,
       height: 32,
@@ -1585,7 +1587,8 @@ class _HoverableChip extends StatefulWidget {
   State<_HoverableChip> createState() => _HoverableChipState();
 }
 
-class _HoverableChipState extends State<_HoverableChip> with SingleTickerProviderStateMixin {
+class _HoverableChipState extends State<_HoverableChip>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   Animation<Color?>? _colorAnimation;
 
@@ -1623,7 +1626,7 @@ class _HoverableChipState extends State<_HoverableChip> with SingleTickerProvide
   }
 
   Color _getCurrentColor() {
-    return _colorAnimation?.value ?? 
+    return _colorAnimation?.value ??
         (widget.isActive ? const Color(0xFFFFEB3B) : const Color(0xFF81C784));
   }
 
@@ -1695,11 +1698,13 @@ class _ClearableChipState extends State<_ClearableChip> {
     final backgroundColor = widget.hasSelection
         ? (_isHovered ? Colors.red[700]! : Colors.red)
         : Colors.grey[200]!;
-    
+
     final textColor = widget.hasSelection ? Colors.white : Colors.black87;
-    
+
     return MouseRegion(
-      cursor: widget.hasSelection ? SystemMouseCursors.click : MouseCursor.defer,
+      cursor: widget.hasSelection
+          ? SystemMouseCursors.click
+          : MouseCursor.defer,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -1778,10 +1783,7 @@ class _GenderButtonState extends State<_GenderButton> {
         onEnter: (_) => setState(() => _isHovered = true),
         onExit: (_) => setState(() => _isHovered = false),
         cursor: SystemMouseCursors.click,
-        child: GestureDetector(
-          onTap: widget.onTap,
-          child: child,
-        ),
+        child: GestureDetector(onTap: widget.onTap, child: child),
       );
     }
 

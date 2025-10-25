@@ -53,7 +53,12 @@ class PinyinSearch {
 
       final isExact = position == 0 && variant.text.length == lowerQuery.length;
       final isPrefix = position == 0;
-      final score = _scoreFor(variant.isPinyin, variant.isShort, isExact, isPrefix);
+      final score = _scoreFor(
+        variant.isPinyin,
+        variant.isShort,
+        isExact,
+        isPrefix,
+      );
       final candidate = _VariantMatch(
         score: score,
         position: position,
@@ -75,7 +80,12 @@ class PinyinSearch {
     return _PinyinMatch(original: value, match: resolvedBest);
   }
 
-  static int _scoreFor(bool isPinyin, bool isShort, bool isExact, bool isPrefix) {
+  static int _scoreFor(
+    bool isPinyin,
+    bool isShort,
+    bool isExact,
+    bool isPrefix,
+  ) {
     if (!isPinyin) {
       if (isExact) return 0;
       if (isPrefix) return 1;
@@ -98,7 +108,11 @@ class _Variant {
 }
 
 class _VariantMatch implements Comparable<_VariantMatch> {
-  const _VariantMatch({required this.score, required this.position, required this.length});
+  const _VariantMatch({
+    required this.score,
+    required this.position,
+    required this.length,
+  });
 
   final int score;
   final int position;
