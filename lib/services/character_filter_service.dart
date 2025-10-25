@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../models/character.dart';
 import '../utils/logger.dart';
+import '../utils/pinyin_utils.dart';
 
 /// 角色筛选服务,负责加载和筛选角色数据
 class CharacterFilterService {
@@ -324,44 +325,7 @@ class CharacterFilterService {
 
   /// 搜索标签
   List<String> searchTags(Set<String> allTags, String query) {
-    if (query.isEmpty) return const <String>[];
-
-    final lowerQuery = query.toLowerCase();
-    final matches = <_TagMatch>[];
-
-    for (final tag in allTags) {
-      final lowerTag = tag.toLowerCase();
-      final position = lowerTag.indexOf(lowerQuery);
-      if (position == -1) {
-        continue;
-      }
-
-      final int score;
-      if (lowerTag == lowerQuery) {
-        score = 0;
-      } else if (lowerTag.startsWith(lowerQuery)) {
-        score = 1;
-      } else {
-        score = 2;
-      }
-
-      matches.add(_TagMatch(tag, score, position));
-    }
-
-    matches.sort((a, b) {
-      if (a.score != b.score) {
-        return a.score.compareTo(b.score);
-      }
-      if (a.position != b.position) {
-        return a.position.compareTo(b.position);
-      }
-      if (a.value.length != b.value.length) {
-        return a.value.length.compareTo(b.value.length);
-      }
-      return a.value.compareTo(b.value);
-    });
-
-    return matches.map((m) => m.value).toList(growable: false);
+    return PinyinSearch.rank(allTags, query);
   }
 
   /// 重新加载数据
@@ -370,12 +334,4 @@ class CharacterFilterService {
     _animeCharacters = null;
     await Future.wait([getAllCharacters(false), getAllCharacters(true)]);
   }
-}
-
-class _TagMatch {
-  const _TagMatch(this.value, this.score, this.position);
-
-  final String value;
-  final int score;
-  final int position;
 }
