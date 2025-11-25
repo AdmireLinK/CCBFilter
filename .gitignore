@@ -47,5 +47,4 @@ app.*.map.json
 dump/
 .vscode/
 *.js
-.github/
 data/
