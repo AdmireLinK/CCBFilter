@@ -26,7 +26,7 @@ Future<void> main() async {
       center: true,
       backgroundColor: Colors.transparent,
       titleBarStyle: TitleBarStyle.hidden,
-      title: '猜猜呗笑传之查查吧',
+      title: '猜猜呗笑传之查查呗',
     );
 
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
